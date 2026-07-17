@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Web;
+using Faded.Services;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Faded;
 
@@ -8,4 +9,10 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-await builder.Build().RunAsync();
+builder.Services.AddScoped<SupabaseService>();
+
+var host = builder.Build();
+var supabase = host.Services.GetRequiredService<SupabaseService>();
+await supabase.InitializeAsync();
+
+await host.RunAsync();
