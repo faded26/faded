@@ -1,0 +1,75 @@
+@page "/book"
+@using Faded.Models
+@using Faded.Services
+@inject BookingService BookingService
+
+<PageTitle>Book a Cut - Faded</PageTitle>
+
+<div class="booking-page">
+    <h1>Book Your Cut</h1>
+
+    @if (_barbers is null || _services is null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="booking-form">
+
+            <label>Your Name</label>
+            <input @bind="_customerName" placeholder="Full name" />
+
+            <label>Email</label>
+            <input @bind="_customerEmail" type="email" placeholder="you@example.com" />
+
+            <label>Phone</label>
+            <input @bind="_customerPhone" placeholder="082 123 4567" />
+
+            <label>Service</label>
+            <select @bind="_selectedServiceId">
+                <option value="">-- Choose a service --</option>
+                @foreach (var service in _services)
+                {
+                    <option value="@service.Id">@service.Name — R@service.Price</option>
+                }
+            </select>
+
+            <label>Barber</label>
+            <select @bind="_selectedBarberId">
+                <option value="">-- Choose a barber --</option>
+                @foreach (var barber in _barbers)
+                {
+                    <option value="@barber.Id">@barber.Name</option>
+                }
+            </select>
+
+            <label>Date</label>
+            <input @bind="_bookingDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+
+            <label>Time</label>
+            <input @bind="_bookingTime" type="time" />
+
+            @* Payment method section gets added in the next pass *@
+
+        </div>
+    }
+</div>
+
+@code {
+    private List<Barber>? _barbers;
+    private List<Service>? _services;
+
+    private string _customerName = string.Empty;
+    private string _customerEmail = string.Empty;
+    private string _customerPhone = string.Empty;
+    private string _selectedServiceId = string.Empty;
+    private string _selectedBarberId = string.Empty;
+    private DateTime _bookingDate = DateTime.Today;
+    private TimeOnly _bookingTime = new TimeOnly(9, 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _barbers = await BookingService.GetActiveBarbers();
+        _services = await BookingService.GetActiveServices();
+    }
+}
