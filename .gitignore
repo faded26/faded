@@ -1,0 +1,6 @@
+bin/
+obj/
+wwwroot/appsettings.Development.json
+.vs/
+*.user
+.DS_Store
