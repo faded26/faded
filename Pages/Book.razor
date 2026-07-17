@@ -1,6 +1,7 @@
 @page "/book"
 @using Faded.Models
 @using Faded.Services
+@using Microsoft.AspNetCore.Components.Forms
 @inject BookingService BookingService
 
 <PageTitle>Book a Cut - Faded</PageTitle>
@@ -49,7 +50,93 @@
             <label>Time</label>
             <input @bind="_bookingTime" type="time" />
 
-            @* Payment method section gets added in the next pass *@
+            <label>Payment Method</label>
+            <div class="payment-methods">
+                <label><input type="radio" name="payment" value="@PaymentMethod.Cash"
+                    checked="@(_paymentMethod == PaymentMethod.Cash)"
+                    @onchange="@(() => _paymentMethod = PaymentMethod.Cash)" /> Cash</label>
+
+                <label><input type="radio" name="payment" value="@PaymentMethod.Card"
+                    checked="@(_paymentMethod == PaymentMethod.Card)"
+                    @onchange="@(() => _paymentMethod = PaymentMethod.Card)" /> Card (Transfer)</label>
+
+                <label><input type="radio" name="payment" value="@PaymentMethod.Subscription"
+                    checked="@(_paymentMethod == PaymentMethod.Subscription)"
+                    @onchange="@(() => _paymentMethod = PaymentMethod.Subscription)" /> Subscription</label>
+            </div>
+
+            @if (_paymentMethod == PaymentMethod.Card)
+            {
+                <div class="card-upload-section">
+                    <label>Upload Proof of Payment</label>
+                    <InputFile OnChange="OnProofFileSelected" accept="image/*,.pdf" />
+                    @if (_proofFile is not null)
+                    {
+                        <p class="file-selected">Selected: @_proofFile.Name</p>
+                    }
+                </div>
+            }
+
+            @if (_paymentMethod == PaymentMethod.Subscription)
+            {
+                <div class="subscription-section">
+                    @if (_currentSubscriber is null)
+                    {
+                        <div class="auth-toggle">
+                            <button type="button" @onclick="@(() => _showSignup = false)"
+                                class="@(_showSignup ? "" : "active")">Log In</button>
+                            <button type="button" @onclick="@(() => _showSignup = true)"
+                                class="@(_showSignup ? "active" : "")">Sign Up</button>
+                        </div>
+
+                        <label>Email</label>
+                        <input @bind="_authEmail" type="email" placeholder="you@example.com" />
+
+                        <label>Password</label>
+                        <input @bind="_authPassword" type="password" />
+
+                        @if (_showSignup)
+                        {
+                            <label>Choose a Plan</label>
+                            <select @bind="_selectedPlanId">
+                                <option value="">-- Choose a plan --</option>
+                                @foreach (var plan in _plans ?? new())
+                                {
+                                    <option value="@plan.Id">@plan.Name — R@plan.Price / @plan.CutsIncluded cuts</option>
+                                }
+                            </select>
+                            <p class="note">Your plan locks you to the barber selected above and runs for 30 days from today.</p>
+                            <button type="button" @onclick="HandleSignup">Sign Up &amp; Continue</button>
+                        }
+                        else
+                        {
+                            <button type="button" @onclick="HandleLogin">Log In</button>
+                        }
+
+                        @if (!string.IsNullOrEmpty(_authError))
+                        {
+                            <p class="error">@_authError</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="subscriber-status">
+                            @if (_currentSubscriber.IsExpired)
+                            {
+                                <p class="error">Your subscription expired on @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be treated as Cash/Card.</p>
+                            }
+                            else if (_currentSubscriber.CutsRemaining == 0)
+                            {
+                                <p class="warning">You've used all your cuts this cycle (renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy")). This booking will need Cash or Card payment instead.</p>
+                            }
+                            else
+                            {
+                                <p class="success">@_currentSubscriber.CutsRemaining cut(s) remaining — cycle renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be auto-confirmed.</p>
+                            }
+                        </div>
+                    }
+                </div>
+            }
 
         </div>
     }
@@ -67,9 +154,50 @@
     private DateTime _bookingDate = DateTime.Today;
     private TimeOnly _bookingTime = new TimeOnly(9, 0);
 
+    private List<SubscriptionPlan>? _plans;
+    private string _paymentMethod = PaymentMethod.Cash;
+
+    private IBrowserFile? _proofFile;
+
+    private bool _showSignup = false;
+    private string _authEmail = string.Empty;
+    private string _authPassword = string.Empty;
+    private string _selectedPlanId = string.Empty;
+    private string _authError = string.Empty;
+    private Subscriber? _currentSubscriber;
+
     protected override async Task OnInitializedAsync()
     {
         _barbers = await BookingService.GetActiveBarbers();
         _services = await BookingService.GetActiveServices();
+        _plans = await BookingService.GetActivePlans();
+    }
+
+    private void OnProofFileSelected(InputFileChangeEventArgs e)
+    {
+        _proofFile = e.File;
+    }
+
+    private async Task HandleLogin()
+    {
+        _authError = string.Empty;
+        // Auth wiring (Supabase sign-in) goes here in the next pass —
+        // placeholder until we wire the submit handler + auth flow together
+    }
+
+    private async Task HandleSignup()
+    {
+        _authError = string.Empty;
+        if (string.IsNullOrEmpty(_selectedPlanId))
+        {
+            _authError = "Please choose a plan.";
+            return;
+        }
+        if (string.IsNullOrEmpty(_selectedBarberId))
+        {
+            _authError = "Please choose a barber above first — your subscription locks to them.";
+            return;
+        }
+        // Auth wiring (Supabase sign-up) goes here in the next pass
     }
 }
