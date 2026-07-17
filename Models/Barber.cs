@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+using Postgrest.Attributes;
+using Postgrest.Models;
 
 namespace Faded.Models;
 

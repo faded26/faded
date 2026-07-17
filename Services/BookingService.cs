@@ -1,5 +1,5 @@
 using Faded.Models;
-using Supabase.Postgrest;
+using Postgrest;
 
 namespace Faded.Services;
 
@@ -58,9 +58,13 @@ public class BookingService
 
     public async Task<string> UploadProofOfPayment(Stream fileStream, string fileName)
     {
+        using var memoryStream = new MemoryStream();
+        await fileStream.CopyToAsync(memoryStream);
+        var bytes = memoryStream.ToArray();
+
         var path = $"{Guid.NewGuid()}_{fileName}";
         var bucket = _supabase.Client.Storage.From("proof-of-payments");
-        await bucket.Upload(fileStream, path);
+        await bucket.Upload(bytes, path);
         return path; // store this path in bookings.proof_of_payment_url
     }
 
