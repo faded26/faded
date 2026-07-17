@@ -3,6 +3,7 @@
 @using Faded.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject BookingService BookingService
+@inject AuthService AuthService
 
 <PageTitle>Book a Cut - Faded</PageTitle>
 
@@ -181,8 +182,13 @@
     private async Task HandleLogin()
     {
         _authError = string.Empty;
-        // Auth wiring (Supabase sign-in) goes here in the next pass —
-        // placeholder until we wire the submit handler + auth flow together
+        var (error, subscriber) = await AuthService.LogInSubscriber(_authEmail, _authPassword);
+        if (error is not null)
+        {
+            _authError = error;
+            return;
+        }
+        _currentSubscriber = subscriber;
     }
 
     private async Task HandleSignup()
@@ -198,6 +204,14 @@
             _authError = "Please choose a barber above first — your subscription locks to them.";
             return;
         }
-        // Auth wiring (Supabase sign-up) goes here in the next pass
+        var (error, subscriber) = await AuthService.SignUpSubscriber(
+            _authEmail, _authPassword, Guid.Parse(_selectedBarberId), Guid.Parse(_selectedPlanId));
+
+        if (error is not null)
+        {
+            _authError = error;
+            return;
+        }
+        _currentSubscriber = subscriber;
     }
 }
