@@ -11,6 +11,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 
 builder.Services.AddScoped<SupabaseService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<AuthService>();
 
 var host = builder.Build();
 var supabase = host.Services.GetRequiredService<SupabaseService>();
