@@ -1,14 +1,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     const { booking_id } = await req.json();
     if (!booking_id) {
-      return new Response(JSON.stringify({ error: "booking_id required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "booking_id required" }), { status: 400, headers: corsHeaders });
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -27,7 +36,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !booking) {
-      return new Response(JSON.stringify({ error: "Booking not found", detail: error?.message }), { status: 404 });
+      return new Response(JSON.stringify({ error: "Booking not found", detail: error?.message }), { status: 404, headers: corsHeaders });
     }
 
     const barber = booking.barbers as unknown as { id: string; name: string; email: string };
@@ -79,13 +88,13 @@ Deno.serve(async (req) => {
 
     if (!brevoRes.ok) {
       const errText = await brevoRes.text();
-      return new Response(JSON.stringify({ error: "Brevo send failed", detail: errText }), { status: 502 });
+      return new Response(JSON.stringify({ error: "Brevo send failed", detail: errText }), { status: 502, headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }
 });

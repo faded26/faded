@@ -1,10 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     const body = await req.json();
     const {
@@ -14,7 +23,7 @@ Deno.serve(async (req) => {
     } = body;
 
     if (!customer_name || !customer_email || !barber_id || !service_id || !booking_date || !booking_time || !payment_method) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: corsHeaders });
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -35,7 +44,7 @@ Deno.serve(async (req) => {
 
     if (payment_method === "subscription") {
       if (!subscriberUserId) {
-        return new Response(JSON.stringify({ error: "You must be logged in to use your subscription." }), { status: 401 });
+        return new Response(JSON.stringify({ error: "You must be logged in to use your subscription." }), { status: 401, headers: corsHeaders });
       }
 
       const { data: subscriber, error: subError } = await admin
@@ -45,7 +54,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (subError || !subscriber) {
-        return new Response(JSON.stringify({ error: "No subscription found for this account." }), { status: 404 });
+        return new Response(JSON.stringify({ error: "No subscription found for this account." }), { status: 404, headers: corsHeaders });
       }
 
       subscriberId = subscriber.id;
@@ -63,10 +72,10 @@ Deno.serve(async (req) => {
           error: isExpired
             ? "Your subscription has expired. Please upload proof of payment."
             : "You've used all your cuts this cycle. Please upload proof of payment.",
-        }), { status: 400 });
+        }), { status: 400, headers: corsHeaders });
       }
     } else if (payment_method === "card" && !proof_of_payment_url) {
-      return new Response(JSON.stringify({ error: "Proof of payment is required for card bookings." }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Proof of payment is required for card bookings." }), { status: 400, headers: corsHeaders });
     }
 
     const status = effectivePaymentMethod === "subscription" ? "approved" : "pending_approval";
@@ -85,7 +94,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError || !booking) {
-      return new Response(JSON.stringify({ error: "Could not create booking", detail: insertError?.message }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Could not create booking", detail: insertError?.message }), { status: 500, headers: corsHeaders });
     }
 
     if (cutsUsedAfterThisBooking !== null && subscriberId) {
@@ -104,9 +113,9 @@ Deno.serve(async (req) => {
     }).catch(() => {});
 
     return new Response(JSON.stringify({ id: booking.id, status: booking.status }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }
 });
