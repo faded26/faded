@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
 
   try {
     const { booking_id } = await req.json();
+    console.log("notify-barber invoked for booking:", booking_id);
     if (!booking_id) {
       return new Response(JSON.stringify({ error: "booking_id required" }), { status: 400, headers: corsHeaders });
     }
@@ -86,11 +87,14 @@ Deno.serve(async (req) => {
       }),
     });
 
+    console.log("Brevo response status:", brevoRes.status);
     if (!brevoRes.ok) {
       const errText = await brevoRes.text();
+      console.error("Brevo error body:", errText);
       return new Response(JSON.stringify({ error: "Brevo send failed", detail: errText }), { status: 502, headers: corsHeaders });
     }
 
+    console.log("Email sent successfully to:", barber.email);
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
