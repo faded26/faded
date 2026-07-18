@@ -1,13 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GMAIL_USER = Deno.env.get("GMAIL_USER")!;
+const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,7 +25,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Pull the booking with everything needed for the alert in one query
     const { data: booking, error } = await supabase
       .from("bookings")
       .select(`
@@ -73,25 +74,29 @@ Deno.serve(async (req) => {
       ${booking.status === "pending_approval" ? "<p>This booking needs your approval before it hits the schedule.</p>" : "<p>This booking is already confirmed on the schedule.</p>"}
     `;
 
-    const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": BREVO_API_KEY,
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: {
+          username: GMAIL_USER,
+          password: GMAIL_APP_PASSWORD,
+        },
       },
-      body: JSON.stringify({
-        sender: { name: "Faded Bookings", email: "faded0713@gmail.com" },
-        to: [{ email: barber.email, name: barber.name }],
-        subject,
-        htmlContent: html,
-      }),
     });
 
-    console.log("Brevo response status:", brevoRes.status);
-    if (!brevoRes.ok) {
-      const errText = await brevoRes.text();
-      console.error("Brevo error body:", errText);
-      return new Response(JSON.stringify({ error: "Brevo send failed", detail: errText }), { status: 502, headers: corsHeaders });
+    try {
+      await client.send({
+        from: `Faded Bookings <${GMAIL_USER}>`,
+        to: barber.email,
+        subject,
+        html,
+      });
+      await client.close();
+    } catch (smtpErr) {
+      console.error("Gmail SMTP error:", smtpErr);
+      return new Response(JSON.stringify({ error: "Email send failed", detail: String(smtpErr) }), { status: 502, headers: corsHeaders });
     }
 
     console.log("Email sent successfully to:", barber.email);
