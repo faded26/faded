@@ -85,7 +85,7 @@ public class BookingService
     // table access would require.
     public async Task<BookingResult> SubmitBooking(Booking booking)
     {
-        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        var payload = new
         {
             customer_name = booking.CustomerName,
             customer_email = booking.CustomerEmail,
@@ -96,11 +96,29 @@ public class BookingService
             booking_time = booking.BookingTime.ToString(@"hh\:mm"),
             payment_method = booking.PaymentMethod,
             proof_of_payment_url = booking.ProofOfPaymentUrl
-        });
+        };
 
         try
         {
-            var responseJson = await _supabase.Client.Functions.Invoke("create-booking", payload);
+            using var http = new HttpClient();
+            var functionUrl = $"{_supabase.Url.TrimEnd('/')}/functions/v1/create-booking";
+
+            var request = new HttpRequestMessage(HttpMethod.Post, functionUrl)
+            {
+                Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+
+            // Forward the current session token if logged in, otherwise the anon key
+            var accessToken = _supabase.Client.Auth.CurrentSession?.AccessToken ?? _supabase.AnonKey;
+            request.Headers.Add("Authorization", $"Bearer {accessToken}");
+            request.Headers.Add("apikey", _supabase.AnonKey);
+
+            var response = await http.SendAsync(request);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
             var result = System.Text.Json.JsonSerializer.Deserialize<BookingResult>(
                 responseJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             return result ?? new BookingResult { Error = "Unexpected empty response." };
