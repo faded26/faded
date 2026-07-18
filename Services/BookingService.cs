@@ -72,28 +72,43 @@ public class BookingService
     // If the subscriber is over their limit, the caller must have already
     // switched payment_method to cash/card and attached proof if needed —
     // this method just decides status + decrements the counter when applicable.
-    public async Task<Booking> SubmitBooking(Booking booking, Subscriber? subscriber)
+    public class BookingResult
     {
-        var usingSubscriptionCut =
-            booking.PaymentMethod == PaymentMethod.Subscription
-            && subscriber is not null
-            && !subscriber.IsExpired
-            && subscriber.CutsRemaining > 0;
+        public Guid? Id { get; set; }
+        public string? Status { get; set; }
+        public string? Error { get; set; }
+    }
 
-        booking.Status = usingSubscriptionCut
-            ? BookingStatus.Approved       // auto-confirm, no barber approval needed
-            : BookingStatus.PendingApproval; // cash/card, or subscriber overflow
-
-        var result = await _supabase.Client.From<Booking>().Insert(booking);
-        var inserted = result.Models.First();
-
-        if (usingSubscriptionCut && subscriber is not null)
+    // Booking creation now happens entirely server-side via the create-booking
+    // Edge Function (service role) — the client no longer writes to bookings
+    // or subscribers directly, avoiding the RLS/PII exposure that direct
+    // table access would require.
+    public async Task<BookingResult> SubmitBooking(Booking booking)
+    {
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
         {
-            subscriber.CutsUsed += 1;
-            await _supabase.Client.From<Subscriber>().Update(subscriber);
-        }
+            customer_name = booking.CustomerName,
+            customer_email = booking.CustomerEmail,
+            customer_phone = booking.CustomerPhone,
+            barber_id = booking.BarberId,
+            service_id = booking.ServiceId,
+            booking_date = booking.BookingDate.ToString("yyyy-MM-dd"),
+            booking_time = booking.BookingTime.ToString(@"hh\:mm"),
+            payment_method = booking.PaymentMethod,
+            proof_of_payment_url = booking.ProofOfPaymentUrl
+        });
 
-        return inserted;
+        try
+        {
+            var responseJson = await _supabase.Client.Functions.Invoke("create-booking", payload);
+            var result = System.Text.Json.JsonSerializer.Deserialize<BookingResult>(
+                responseJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return result ?? new BookingResult { Error = "Unexpected empty response." };
+        }
+        catch (Exception ex)
+        {
+            return new BookingResult { Error = ex.Message };
+        }
     }
 
     // Calls the Supabase Edge Function that sends the barber their alert email.

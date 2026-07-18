@@ -32,7 +32,7 @@
                 <option value="">-- Choose a service --</option>
                 @foreach (var service in _services)
                 {
-                    <option value="@service.Id">@service.Name — R@service.Price</option>
+                    <option value="@service.Id">@service.Name — R@(service.Price)</option>
                 }
             </select>
 
@@ -229,31 +229,8 @@
 
         try
         {
-            // Determine effective payment method: a subscriber with no cuts left
-            // or an expired plan falls back to card/cash-style approval flow.
-            var effectivePaymentMethod = _paymentMethod;
-            Guid? subscriberId = null;
-
-            if (_paymentMethod == PaymentMethod.Subscription && _currentSubscriber is not null)
-            {
-                subscriberId = _currentSubscriber.Id;
-                var canUseSubscription = !_currentSubscriber.IsExpired && _currentSubscriber.CutsRemaining > 0;
-                if (!canUseSubscription)
-                {
-                    // Overflow: still tag the subscriber_id for visibility, but
-                    // this now requires proof of payment like a normal card booking
-                    if (_proofFile is null)
-                    {
-                        _submitError = "Your subscription cuts are used up — please upload proof of payment to continue.";
-                        _submitting = false;
-                        return;
-                    }
-                    effectivePaymentMethod = PaymentMethod.Card;
-                }
-            }
-
             string? proofUrl = null;
-            if (_proofFile is not null && (effectivePaymentMethod == PaymentMethod.Card))
+            if (_proofFile is not null)
             {
                 await using var stream = _proofFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB cap
                 proofUrl = await BookingService.UploadProofOfPayment(stream, _proofFile.Name);
@@ -268,23 +245,22 @@
                 ServiceId = Guid.Parse(_selectedServiceId),
                 BookingDate = _bookingDate,
                 BookingTime = _bookingTime.ToTimeSpan(),
-                PaymentMethod = effectivePaymentMethod,
-                ProofOfPaymentUrl = proofUrl,
-                SubscriberId = subscriberId
+                PaymentMethod = _paymentMethod,
+                ProofOfPaymentUrl = proofUrl
             };
 
-            var saved = await BookingService.SubmitBooking(booking, _currentSubscriber);
+            var result = await BookingService.SubmitBooking(booking);
 
-            // Fire-and-forget style notify — booking is already saved regardless of email outcome
-            await BookingService.NotifyBarber(saved);
+            if (result.Error is not null)
+            {
+                _submitError = result.Error;
+                _submitting = false;
+                return;
+            }
 
             _submitted = true;
         }
-        catch (Exception ex)
-        {
-            _submitError = $"Something went wrong: {ex.Message}";
-        }
-        finally
+                finally
         {
             _submitting = false;
         }
