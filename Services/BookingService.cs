@@ -95,4 +95,21 @@ public class BookingService
 
         return inserted;
     }
+
+    // Calls the Supabase Edge Function that sends the barber their alert email.
+    // The function looks up the barber's email server-side and includes full
+    // booking details: payment type, subscriber id if applicable, etc.
+    public async Task NotifyBarber(Booking booking)
+    {
+        try
+        {
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { booking_id = booking.Id });
+            await _supabase.Client.Functions.Invoke("notify-barber", payload);
+        }
+        catch
+        {
+            // Booking is already saved — a failed notification shouldn't block the customer.
+            // Worth adding real logging here later.
+        }
+    }
 }

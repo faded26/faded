@@ -139,6 +139,22 @@
                 </div>
             }
 
+            @if (!string.IsNullOrEmpty(_submitError))
+            {
+                <p class="error">@_submitError</p>
+            }
+
+            @if (_submitted)
+            {
+                <p class="success">Booking submitted! You'll hear from us once it's confirmed.</p>
+            }
+            else
+            {
+                <button type="button" @onclick="HandleSubmit" disabled="@_submitting">
+                    @(_submitting ? "Submitting..." : "Book Now")
+                </button>
+            }
+
         </div>
     }
 </div>
@@ -177,6 +193,101 @@
     private void OnProofFileSelected(InputFileChangeEventArgs e)
     {
         _proofFile = e.File;
+    }
+
+    private string _submitError = string.Empty;
+    private bool _submitting = false;
+    private bool _submitted = false;
+
+    private async Task HandleSubmit()
+    {
+        _submitError = string.Empty;
+
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(_customerName) || string.IsNullOrWhiteSpace(_customerEmail))
+        {
+            _submitError = "Please fill in your name and email.";
+            return;
+        }
+        if (string.IsNullOrEmpty(_selectedServiceId) || string.IsNullOrEmpty(_selectedBarberId))
+        {
+            _submitError = "Please choose a service and a barber.";
+            return;
+        }
+        if (_paymentMethod == PaymentMethod.Card && _proofFile is null)
+        {
+            _submitError = "Please upload proof of payment.";
+            return;
+        }
+        if (_paymentMethod == PaymentMethod.Subscription && _currentSubscriber is null)
+        {
+            _submitError = "Please log in or sign up to use your subscription.";
+            return;
+        }
+
+        _submitting = true;
+
+        try
+        {
+            // Determine effective payment method: a subscriber with no cuts left
+            // or an expired plan falls back to card/cash-style approval flow.
+            var effectivePaymentMethod = _paymentMethod;
+            Guid? subscriberId = null;
+
+            if (_paymentMethod == PaymentMethod.Subscription && _currentSubscriber is not null)
+            {
+                subscriberId = _currentSubscriber.Id;
+                var canUseSubscription = !_currentSubscriber.IsExpired && _currentSubscriber.CutsRemaining > 0;
+                if (!canUseSubscription)
+                {
+                    // Overflow: still tag the subscriber_id for visibility, but
+                    // this now requires proof of payment like a normal card booking
+                    if (_proofFile is null)
+                    {
+                        _submitError = "Your subscription cuts are used up — please upload proof of payment to continue.";
+                        _submitting = false;
+                        return;
+                    }
+                    effectivePaymentMethod = PaymentMethod.Card;
+                }
+            }
+
+            string? proofUrl = null;
+            if (_proofFile is not null && (effectivePaymentMethod == PaymentMethod.Card))
+            {
+                await using var stream = _proofFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB cap
+                proofUrl = await BookingService.UploadProofOfPayment(stream, _proofFile.Name);
+            }
+
+            var booking = new Booking
+            {
+                CustomerName = _customerName,
+                CustomerEmail = _customerEmail,
+                CustomerPhone = _customerPhone,
+                BarberId = Guid.Parse(_selectedBarberId),
+                ServiceId = Guid.Parse(_selectedServiceId),
+                BookingDate = _bookingDate,
+                BookingTime = _bookingTime.ToTimeSpan(),
+                PaymentMethod = effectivePaymentMethod,
+                ProofOfPaymentUrl = proofUrl,
+                SubscriberId = subscriberId
+            };
+
+            var saved = await BookingService.SubmitBooking(booking, _currentSubscriber);
+
+            // Fire-and-forget style notify — booking is already saved regardless of email outcome
+            await BookingService.NotifyBarber(saved);
+
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            _submitError = $"Something went wrong: {ex.Message}";
+        }
+        finally
+        {
+            _submitting = false;
+        }
     }
 
     private async Task HandleLogin()
