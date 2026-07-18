@@ -101,16 +101,22 @@ Deno.serve(async (req) => {
       await admin.from("subscribers").update({ cuts_used: cutsUsedAfterThisBooking }).eq("id", subscriberId);
     }
 
-    // Fire-and-forget barber alert — booking is already saved regardless of outcome
-    fetch(`${SUPABASE_URL}/functions/v1/notify-barber`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
-        "apikey": SERVICE_ROLE_KEY,
-      },
-      body: JSON.stringify({ booking_id: booking.id }),
-    }).catch(() => {});
+    // Booking is already saved regardless of what happens here — but we AWAIT
+    // this rather than fire-and-forget, since un-awaited promises can be killed
+    // by the runtime once the response is sent back to the client.
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/notify-barber`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+          "apikey": SERVICE_ROLE_KEY,
+        },
+        body: JSON.stringify({ booking_id: booking.id }),
+      });
+    } catch (_) {
+      // Swallow — a failed notification shouldn't fail the booking response
+    }
 
     return new Response(JSON.stringify({ id: booking.id, status: booking.status }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
