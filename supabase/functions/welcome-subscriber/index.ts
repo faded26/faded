@@ -56,9 +56,10 @@ Deno.serve(async (req) => {
     const datesHtml = cutDates.map((d, i) => `<div style="font-size:13px;color:#F5F3EF;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.1);">Cut ${i + 1} — <span style="color:#C9A24B;">${d}</span></div>`).join("");
 
     const html = `
-      <div style="font-family:Georgia,serif;background:#0e0e10 url('${BG_URL}');background-size:cover;background-position:center;padding:32px 16px;">
-        <div style="max-width:480px;margin:0 auto;background:rgba(23,23,26,0.92);border-radius:12px;overflow:hidden;">
-          <div style="background:rgba(14,14,16,0.85);padding:20px 24px;">
+      <div style="font-family:Georgia,serif;background:#0e0e10;padding:32px 16px;">
+        <div style="max-width:480px;margin:0 auto;background:#17171A;border-radius:12px;overflow:hidden;">
+          <img src="${BG_URL}" alt="Faded" width="480" style="width:100%;max-width:480px;height:180px;object-fit:cover;display:block;border:0;" />
+          <div style="background:#0e0e10;padding:16px 24px;">
             <span style="font-weight:bold;letter-spacing:0.02em;font-size:20px;color:#C9A24B;">FADED.</span>
           </div>
           <div style="padding:24px;">
