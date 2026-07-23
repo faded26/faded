@@ -105,6 +105,24 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Could not create subscription.", detail: subError.message }), { status: 500, headers: corsHeaders });
     }
 
+    try {
+      console.log("Calling welcome-subscriber for:", userId);
+      const welcomeRes = await fetch(`${SUPABASE_URL}/functions/v1/welcome-subscriber`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+          "apikey": SERVICE_ROLE_KEY,
+        },
+        body: JSON.stringify({ subscriber_id: userId }),
+      });
+      const welcomeBody = await welcomeRes.text();
+      console.log("welcome-subscriber response:", welcomeRes.status, welcomeBody);
+    } catch (welcomeErr) {
+      console.error("welcome-subscriber call threw:", welcomeErr);
+      // Welcome email failing shouldn't fail the signup
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
