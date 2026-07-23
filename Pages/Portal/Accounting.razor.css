@@ -1,0 +1,188 @@
+::deep {
+  --bg: #0e0e10;
+  --surface: #17171a;
+  --surface-raised: #1f1f23;
+  --border: #2c2c31;
+  --text: #f2efe9;
+  --text-muted: #a3a09b;
+  --accent: #cf6b7a;
+}
+
+.page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(14, 14, 16, 0.25), rgba(14, 14, 16, 0.4)),
+    url('/images/faded-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--text);
+}
+
+.loading {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  background: rgba(20, 17, 15, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.wordmark {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.nav-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.nav-link:hover {
+  color: var(--accent);
+}
+
+.who {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page-title {
+  font-family: 'Anton', sans-serif;
+  font-size: 2rem;
+  margin: 0 0 0.25rem;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 0 0 2rem;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  background: rgba(23, 23, 26, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stat-card-total {
+  border-color: var(--accent);
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.7rem;
+  color: var(--accent);
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.report-card {
+  background: rgba(23, 23, 26, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.report-card h2 {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.1rem;
+  margin: 0 0 1.25rem;
+  text-transform: uppercase;
+}
+
+.report-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 80px;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.85rem;
+}
+
+.report-label {
+  text-transform: capitalize;
+  color: var(--text-muted);
+}
+
+.report-count {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.report-bar-track {
+  background: var(--surface-raised);
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.report-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.report-amount {
+  text-align: right;
+  font-weight: 600;
+}

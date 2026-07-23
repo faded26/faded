@@ -1,0 +1,217 @@
+@page "/subscribe"
+@using Faded.Models
+@using Faded.Services
+@inject BookingService BookingService
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Subscribe - Faded</PageTitle>
+
+<div class="page">
+    <div class="watermark" aria-hidden="true">FADED.</div>
+
+    <header class="topbar">
+        <span class="wordmark">FADED.</span>
+    </header>
+
+    @if (_showInfoModal)
+    {
+        <div class="modal-overlay">
+            <div class="modal-card">
+                <h2 class="modal-title">The Faded Subscription</h2>
+                <ul class="benefits-list">
+                    <li>4 cuts a month for one flat price — no surprises</li>
+                    <li>Bookings made with your subscription confirm instantly, no waiting on approval</li>
+                    <li>Locked in with your chosen barber every time</li>
+                    <li>Cancel any renewal you don't want — no long-term contract</li>
+                </ul>
+                <p class="modal-note">Your cycle runs 30 days from sign-up. Unused cuts don't roll over, so use them before it renews.</p>
+                <div class="modal-actions">
+                    <button class="btn-primary" @onclick="@(() => _showInfoModal = false)">OK, let's sign up</button>
+                    <a href="/book" class="btn-text">Maybe later</a>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <main class="card">
+            <h1 class="card-title">Sign Up for a Subscription</h1>
+            <p class="card-subtitle">A few details and you're set.</p>
+
+            @if (_barbers is null || _plans is null)
+            {
+                <p class="loading">Loading...</p>
+            }
+            else if (_success)
+            {
+                <p class="alert alert-success">You're subscribed! Check your email for the details — heading you to booking now.</p>
+            }
+            else
+            {
+                <div class="booking-form">
+                    <div class="field-grid">
+                        <div class="field">
+                            <label>Full Name</label>
+                            <input @bind="_fullName" placeholder="Full name" />
+                        </div>
+                        <div class="field">
+                            <label>Email</label>
+                            <input @bind="_email" type="email" placeholder="you@example.com" />
+                        </div>
+                        <div class="field">
+                            <label>Phone</label>
+                            <input @bind="_phone" placeholder="082 123 4567" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Preferred Contact Method</label>
+                        <select @bind="_preferredContactMethod">
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="SMS">SMS</option>
+                            <option value="Email">Email</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label>Password</label>
+                        <div class="password-wrapper">
+                            <input @bind="_password" type="@(_showPassword ? "text" : "password")" placeholder="At least 8 characters" />
+                            <button type="button" class="password-toggle" @onclick="@(() => _showPassword = !_showPassword)" tabindex="-1">
+                                @(_showPassword ? "Hide" : "Show")
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="field-grid">
+                        <div class="field">
+                            <label>Barber</label>
+                            <select @bind="_selectedBarberId">
+                                <option value="">-- Choose a barber --</option>
+                                @foreach (var barber in _barbers)
+                                {
+                                    <option value="@barber.Id">@barber.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Plan</label>
+                            <select @bind="_selectedPlanId">
+                                <option value="">-- Choose a plan --</option>
+                                @foreach (var plan in _plans)
+                                {
+                                    <option value="@plan.Id">@plan.Name — R@(plan.Price) / @plan.CutsIncluded cuts</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Preferred Cut Dates (optional)</label>
+                        <p class="note">Pick rough dates you'd like each cut — we'll suggest even spacing if you skip this.</p>
+                        <div class="date-grid">
+                            @for (int i = 0; i < CutsForSelectedPlan(); i++)
+                            {
+                                var idx = i;
+                                <input type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                    @onchange="@(e => SetPreferredDate(idx, e.Value?.ToString()))" />
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <p class="alert alert-error">@_error</p>
+                    }
+
+                    <button type="button" class="btn-primary" @onclick="HandleSubmit" disabled="@_submitting">
+                        @(_submitting ? "Signing up..." : "Sign Up")
+                    </button>
+                </div>
+            }
+        </main>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "barberId")]
+    public string? PrefillBarberId { get; set; }
+
+    private List<Barber>? _barbers;
+    private List<SubscriptionPlan>? _plans;
+    private bool _showInfoModal = true;
+
+    private string _fullName = string.Empty;
+    private string _email = string.Empty;
+    private string _phone = string.Empty;
+    private string _preferredContactMethod = "WhatsApp";
+    private string _password = string.Empty;
+    private bool _showPassword = false;
+    private string _selectedBarberId = string.Empty;
+    private string _selectedPlanId = string.Empty;
+    private DateTime?[] _preferredDates = new DateTime?[8];
+
+    private string _error = string.Empty;
+    private bool _submitting = false;
+    private bool _success = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _barbers = await BookingService.GetActiveBarbers();
+        _plans = await BookingService.GetActivePlans();
+
+        if (!string.IsNullOrEmpty(PrefillBarberId))
+        {
+            _selectedBarberId = PrefillBarberId;
+        }
+    }
+
+    private int CutsForSelectedPlan()
+    {
+        if (string.IsNullOrEmpty(_selectedPlanId)) return 4;
+        var plan = _plans?.FirstOrDefault(p => p.Id.ToString() == _selectedPlanId);
+        return plan?.CutsIncluded ?? 4;
+    }
+
+    private void SetPreferredDate(int index, string? value)
+    {
+        _preferredDates[index] = DateTime.TryParse(value, out var d) ? d : null;
+    }
+
+    private async Task HandleSubmit()
+    {
+        _error = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_fullName) || string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        {
+            _error = "Name, email, and password are required.";
+            return;
+        }
+        if (string.IsNullOrEmpty(_selectedBarberId) || string.IsNullOrEmpty(_selectedPlanId))
+        {
+            _error = "Please choose a barber and a plan.";
+            return;
+        }
+
+        _submitting = true;
+
+        var dates = _preferredDates.Where(d => d is not null).Select(d => d!.Value).ToList();
+        var (error, subscriber) = await AuthService.SignUpSubscriber(
+            _email, _password, Guid.Parse(_selectedBarberId), Guid.Parse(_selectedPlanId),
+            _fullName, _phone, _preferredContactMethod, dates.Count > 0 ? dates : null);
+
+        _submitting = false;
+
+        if (error is not null)
+        {
+            _error = error;
+            return;
+        }
+
+        _success = true;
+        await Task.Delay(2000);
+        Nav.NavigateTo("/book");
+    }
+}

@@ -439,3 +439,36 @@ entrypoint = "./functions/add-barber/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/add-barber/*.html" ]
+
+[functions.monthly-report]
+enabled = true
+verify_jwt = false
+import_map = "./functions/monthly-report/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/monthly-report/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/monthly-report/*.html" ]
+
+[functions.create-subscriber]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-subscriber/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-subscriber/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-subscriber/*.html" ]
+
+[functions.welcome-subscriber]
+enabled = true
+verify_jwt = false
+import_map = "./functions/welcome-subscriber/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/welcome-subscriber/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/welcome-subscriber/*.html" ]

@@ -13,6 +13,11 @@ function fmtDate(d: Date) {
 }
 
 Deno.serve(async (req) => {
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader !== `Bearer ${SERVICE_ROLE_KEY}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   try {
     const { subscriber_id } = await req.json();
     if (!subscriber_id) {

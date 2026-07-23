@@ -1,0 +1,498 @@
+@page "/barber/dashboard"
+@using Faded.Models
+@using Faded.Services
+@inject AuthService AuthService
+@inject BookingService BookingService
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard - Faded</PageTitle>
+
+<div class="page">
+    @if (_loading)
+    {
+        <p class="loading">Loading...</p>
+    }
+    else if (_barber is null)
+    {
+        <p class="loading">Redirecting to login...</p>
+    }
+    else
+    {
+        <header class="topbar">
+            <span class="wordmark">FADED.</span>
+            <div class="topbar-right">
+                @if (_barber.IsOwner)
+                {
+                    <a href="/barber/accounting" class="nav-link">Accounting</a>
+                }
+                <span class="who">@_barber.Name @(_barber.IsOwner ? "(Owner)" : "")</span>
+                <button class="btn-logout" @onclick="HandleLogout">Log Out</button>
+            </div>
+        </header>
+
+        <main class="content">
+
+            @if (_barber.IsOwner)
+            {
+                <div class="admin-panels">
+
+                    <div class="admin-panel">
+                        <button class="toggle-panel" @onclick="() => _showAddBarber = !_showAddBarber">
+                            @(_showAddBarber ? "Cancel" : "+ Add Barber")
+                        </button>
+
+                        @if (_showAddBarber)
+                        {
+                            <div class="panel-form">
+                                <div class="field-grid">
+                                    <div class="field">
+                                        <label>Name</label>
+                                        <input @bind="_newBarberName" placeholder="Full name" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Email</label>
+                                        <input @bind="_newBarberEmail" type="email" placeholder="barber@example.com" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Phone</label>
+                                        <input @bind="_newBarberPhone" placeholder="082 123 4567" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Temporary Password</label>
+                                        <input @bind="_newBarberPassword" type="password" placeholder="At least 8 characters" />
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(_addBarberError))
+                                {
+                                    <p class="alert alert-error">@_addBarberError</p>
+                                }
+                                @if (!string.IsNullOrEmpty(_addBarberSuccess))
+                                {
+                                    <p class="alert alert-success">@_addBarberSuccess</p>
+                                }
+
+                                <button class="btn-approve" @onclick="HandleAddBarber" disabled="@_addingBarber">
+                                    @(_addingBarber ? "Adding..." : "Create Barber Login")
+                                </button>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="admin-panel">
+                        <button class="toggle-panel" @onclick="() => _showServices = !_showServices">
+                            @(_showServices ? "Hide Services" : "Manage Services")
+                        </button>
+
+                        @if (_showServices)
+                        {
+                            <div class="panel-form">
+                                <div class="services-manage-list">
+                                    @foreach (var service in _allServices)
+                                    {
+                                        <div class="service-row">
+                                            @if (_editingServiceId == service.Id)
+                                            {
+                                                <input class="svc-input" @bind="_editName" placeholder="Name" />
+                                                <input class="svc-input svc-input-sm" type="number" @bind="_editPrice" placeholder="Price" />
+                                                <input class="svc-input svc-input-sm" type="number" @bind="_editDuration" placeholder="Mins" />
+                                                <button class="btn-approve btn-sm" @onclick="() => SaveServiceEdit(service.Id)">Save</button>
+                                                <button class="btn-decline btn-sm" @onclick="() => _editingServiceId = null">Cancel</button>
+                                            }
+                                            else
+                                            {
+                                                <span class="svc-name">@service.Name</span>
+                                                <span class="svc-price">R@(service.Price)</span>
+                                                <span class="svc-duration">@(service.DurationMinutes) min</span>
+                                                <span class="badge @(service.Active ? "status-approved" : "status-declined")">@(service.Active ? "active" : "inactive")</span>
+                                                <button class="btn-sm btn-outline" @onclick="() => StartServiceEdit(service)">Edit</button>
+                                                <button class="btn-sm btn-outline" @onclick="() => ToggleServiceActive(service)">
+                                                    @(service.Active ? "Deactivate" : "Activate")
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="new-service-row">
+                                    <input class="svc-input" @bind="_newServiceName" placeholder="New service name" />
+                                    <input class="svc-input svc-input-sm" type="number" @bind="_newServicePrice" placeholder="Price" />
+                                    <input class="svc-input svc-input-sm" type="number" @bind="_newServiceDuration" placeholder="Mins" />
+                                    <button class="btn-approve btn-sm" @onclick="HandleCreateService">Add Service</button>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(_serviceError))
+                                {
+                                    <p class="alert alert-error">@_serviceError</p>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="admin-panel">
+                        <button class="toggle-panel" @onclick="() => _showSettings = !_showSettings">
+                            @(_showSettings ? "Hide Bank Details" : "Manage Bank Details")
+                        </button>
+
+                        @if (_showSettings)
+                        {
+                            <div class="panel-form">
+                                <div class="field-grid">
+                                    <div class="field">
+                                        <label>Bank Name</label>
+                                        <input @bind="_settingsBankName" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Account Holder</label>
+                                        <input @bind="_settingsAccountHolder" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Account Number</label>
+                                        <input @bind="_settingsAccountNumber" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Branch Code</label>
+                                        <input @bind="_settingsBranchCode" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Account Type</label>
+                                        <input @bind="_settingsAccountType" />
+                                    </div>
+                                    <div class="field">
+                                        <label>Payment Reference Note</label>
+                                        <input @bind="_settingsReferenceNote" />
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(_settingsError))
+                                {
+                                    <p class="alert alert-error">@_settingsError</p>
+                                }
+                                @if (!string.IsNullOrEmpty(_settingsSuccess))
+                                {
+                                    <p class="alert alert-success">@_settingsSuccess</p>
+                                }
+
+                                <button class="btn-approve" @onclick="HandleSaveSettings" disabled="@_savingSettings">
+                                    @(_savingSettings ? "Saving..." : "Save Bank Details")
+                                </button>
+                            </div>
+                        }
+                    </div>
+
+                </div>
+            }
+
+            <div class="tabs">
+                <button class="tab @(_activeTab == "pending" ? "active" : "")" @onclick='@(() => _activeTab = "pending")'>
+                    Pending Approval @(_pendingCount > 0 ? $"({_pendingCount})" : "")
+                </button>
+                <button class="tab @(_activeTab == "upcoming" ? "active" : "")" @onclick='@(() => _activeTab = "upcoming")'>
+                    Upcoming
+                </button>
+                <button class="tab @(_activeTab == "history" ? "active" : "")" @onclick='@(() => _activeTab = "history")'>
+                    History
+                </button>
+            </div>
+
+            @if (_actionError is not null)
+            {
+                <p class="alert alert-error">@_actionError</p>
+            }
+
+            <div class="bookings-list">
+                @foreach (var booking in FilteredBookings())
+                {
+                    <div class="booking-card">
+                        <div class="booking-main">
+                            <div class="booking-when">
+                                <span class="date">@booking.BookingDate.ToString("ddd, dd MMM")</span>
+                                <span class="time">@FormatTime(booking.BookingTime)</span>
+                            </div>
+                            <div class="booking-info">
+                                <span class="customer">@booking.CustomerName</span>
+                                <span class="detail">@ServiceName(booking.ServiceId) — R@(ServicePrice(booking.ServiceId))</span>
+                                @if (_barber.IsOwner)
+                                {
+                                    <span class="detail">Barber: @BarberName(booking.BarberId)</span>
+                                }
+                                <span class="detail">@booking.CustomerPhone &middot; @booking.CustomerEmail</span>
+                            </div>
+                            <div class="booking-meta">
+                                <span class="badge badge-@booking.PaymentMethod">@booking.PaymentMethod</span>
+                                <span class="badge status-@booking.Status">@booking.Status.Replace("_", " ")</span>
+                            </div>
+                        </div>
+
+                        <div class="booking-actions">
+                            @if (booking.Status == BookingStatus.PendingApproval)
+                            {
+                                <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Approved)">
+                                    @(_updatingBookingId == booking.Id ? "..." : "Approve")
+                                </button>
+                                <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Declined)">
+                                    @(_updatingBookingId == booking.Id ? "..." : "Decline")
+                                </button>
+                            }
+                            else if (booking.Status == BookingStatus.Approved)
+                            {
+                                <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Completed)">
+                                    @(_updatingBookingId == booking.Id ? "..." : "Mark Completed")
+                                </button>
+                                <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.NoShow)">
+                                    @(_updatingBookingId == booking.Id ? "..." : "No Show")
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredBookings().Any())
+                {
+                    <p class="empty">Nothing here.</p>
+                }
+            </div>
+        </main>
+    }
+</div>
+
+@code {
+    private Barber? _barber;
+    private List<Booking> _bookings = new();
+    private List<Service> _services = new();
+    private List<Service> _allServices = new();
+    private List<Barber> _barbers = new();
+    private bool _loading = true;
+    private string _activeTab = "pending";
+    private string? _actionError;
+    private Guid? _updatingBookingId;
+
+    private bool _showAddBarber = false;
+    private string _newBarberName = string.Empty;
+    private string _newBarberEmail = string.Empty;
+    private string _newBarberPhone = string.Empty;
+    private string _newBarberPassword = string.Empty;
+    private string? _addBarberError;
+    private string? _addBarberSuccess;
+    private bool _addingBarber = false;
+
+    private bool _showServices = false;
+    private Guid? _editingServiceId;
+    private string _editName = string.Empty;
+    private decimal _editPrice;
+    private int _editDuration;
+    private string _newServiceName = string.Empty;
+    private decimal _newServicePrice;
+    private int _newServiceDuration = 30;
+    private string? _serviceError;
+
+    private bool _showSettings = false;
+    private string _settingsBankName = string.Empty;
+    private string _settingsAccountHolder = string.Empty;
+    private string _settingsAccountNumber = string.Empty;
+    private string _settingsBranchCode = string.Empty;
+    private string _settingsAccountType = string.Empty;
+    private string _settingsReferenceNote = string.Empty;
+    private string? _settingsError;
+    private string? _settingsSuccess;
+    private bool _savingSettings = false;
+
+    private int _pendingCount => _bookings.Count(b => b.Status == BookingStatus.PendingApproval);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _barber = await AuthService.GetCurrentBarber();
+        if (_barber is null)
+        {
+            Nav.NavigateTo("/barber/login");
+            return;
+        }
+
+        await LoadData();
+        _loading = false;
+    }
+
+    private async Task LoadData()
+    {
+        _bookings = await BookingService.GetDashboardBookings();
+        _services = await BookingService.GetAllServices();
+        _allServices = _services;
+        _barbers = _barber!.IsOwner ? await BookingService.GetAllBarbers() : new();
+
+        if (_barber.IsOwner)
+        {
+            var settings = await BookingService.GetBusinessSettings();
+            if (settings is not null)
+            {
+                _settingsBankName = settings.BankName ?? string.Empty;
+                _settingsAccountHolder = settings.AccountHolder ?? string.Empty;
+                _settingsAccountNumber = settings.AccountNumber ?? string.Empty;
+                _settingsBranchCode = settings.BranchCode ?? string.Empty;
+                _settingsAccountType = settings.AccountType ?? string.Empty;
+                _settingsReferenceNote = settings.PaymentReferenceNote ?? string.Empty;
+            }
+        }
+    }
+
+    private List<Booking> FilteredBookings()
+    {
+        return _activeTab switch
+        {
+            "pending" => _bookings.Where(b => b.Status == BookingStatus.PendingApproval).ToList(),
+            "upcoming" => _bookings.Where(b => b.Status == BookingStatus.Approved && b.BookingDate >= DateTime.Today).ToList(),
+            "history" => _bookings.Where(b => b.Status is BookingStatus.Completed or BookingStatus.Declined or BookingStatus.Cancelled or BookingStatus.NoShow
+                || (b.Status == BookingStatus.Approved && b.BookingDate < DateTime.Today)).ToList(),
+            _ => _bookings
+        };
+    }
+
+    private string ServiceName(Guid id) => _services.FirstOrDefault(s => s.Id == id)?.Name ?? "—";
+    private decimal ServicePrice(Guid id) => _services.FirstOrDefault(s => s.Id == id)?.Price ?? 0;
+    private string BarberName(Guid id) => _barbers.FirstOrDefault(b => b.Id == id)?.Name ?? "—";
+    private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+
+    private async Task HandleStatusChange(Guid bookingId, string newStatus)
+    {
+        if (_updatingBookingId is not null) return;
+
+        _actionError = null;
+        _updatingBookingId = bookingId;
+
+        var (success, error) = await BookingService.UpdateBookingStatus(bookingId, newStatus);
+
+        _updatingBookingId = null;
+
+        if (!success)
+        {
+            _actionError = error ?? "Couldn't update that booking — please try again.";
+            return;
+        }
+
+        var booking = _bookings.FirstOrDefault(b => b.Id == bookingId);
+        if (booking is not null) booking.Status = newStatus;
+    }
+
+    private async Task HandleAddBarber()
+    {
+        _addBarberError = null;
+        _addBarberSuccess = null;
+
+        if (string.IsNullOrWhiteSpace(_newBarberName) || string.IsNullOrWhiteSpace(_newBarberEmail) || string.IsNullOrWhiteSpace(_newBarberPassword))
+        {
+            _addBarberError = "Name, email, and password are required.";
+            return;
+        }
+
+        _addingBarber = true;
+        var (error, success) = await BookingService.AddBarber(_newBarberName, _newBarberEmail, _newBarberPhone, _newBarberPassword);
+        _addingBarber = false;
+
+        if (!success)
+        {
+            _addBarberError = error ?? "Could not add barber.";
+            return;
+        }
+
+        _addBarberSuccess = $"{_newBarberName} can now log in with the password you set.";
+        _newBarberName = string.Empty;
+        _newBarberEmail = string.Empty;
+        _newBarberPhone = string.Empty;
+        _newBarberPassword = string.Empty;
+
+        await LoadData();
+    }
+
+    private void StartServiceEdit(Service service)
+    {
+        _editingServiceId = service.Id;
+        _editName = service.Name;
+        _editPrice = service.Price;
+        _editDuration = service.DurationMinutes;
+    }
+
+    private async Task SaveServiceEdit(Guid id)
+    {
+        _serviceError = null;
+        if (string.IsNullOrWhiteSpace(_editName) || _editPrice <= 0)
+        {
+            _serviceError = "Name and a valid price are required.";
+            return;
+        }
+
+        var (error, success) = await BookingService.UpdateService(id, _editName, _editPrice, _editDuration);
+        if (!success)
+        {
+            _serviceError = error ?? "Could not update service.";
+            return;
+        }
+
+        _editingServiceId = null;
+        await LoadData();
+    }
+
+    private async Task ToggleServiceActive(Service service)
+    {
+        _serviceError = null;
+        var (error, success) = await BookingService.SetServiceActive(service.Id, !service.Active);
+        if (!success)
+        {
+            _serviceError = error ?? "Could not update service.";
+            return;
+        }
+        await LoadData();
+    }
+
+    private async Task HandleCreateService()
+    {
+        _serviceError = null;
+        if (string.IsNullOrWhiteSpace(_newServiceName) || _newServicePrice <= 0)
+        {
+            _serviceError = "Name and a valid price are required.";
+            return;
+        }
+
+        var (error, success) = await BookingService.CreateService(_newServiceName, _newServicePrice, _newServiceDuration);
+        if (!success)
+        {
+            _serviceError = error ?? "Could not add service.";
+            return;
+        }
+
+        _newServiceName = string.Empty;
+        _newServicePrice = 0;
+        _newServiceDuration = 30;
+        await LoadData();
+    }
+
+    private async Task HandleSaveSettings()
+    {
+        _settingsError = null;
+        _settingsSuccess = null;
+
+        if (string.IsNullOrWhiteSpace(_settingsBankName) || string.IsNullOrWhiteSpace(_settingsAccountNumber))
+        {
+            _settingsError = "Bank name and account number are required.";
+            return;
+        }
+
+        _savingSettings = true;
+        var (error, success) = await BookingService.UpdateBusinessSettings(
+            _settingsBankName, _settingsAccountHolder, _settingsAccountNumber,
+            _settingsBranchCode, _settingsAccountType, _settingsReferenceNote);
+        _savingSettings = false;
+
+        if (!success)
+        {
+            _settingsError = error ?? "Could not save bank details.";
+            return;
+        }
+
+        _settingsSuccess = "Bank details updated.";
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogOut();
+        Nav.NavigateTo("/barber/login");
+    }
+}

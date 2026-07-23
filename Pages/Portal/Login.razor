@@ -1,0 +1,64 @@
+@page "/barber/login"
+@using Faded.Services
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Barber Login - Faded</PageTitle>
+
+<div class="page">
+    <div class="watermark" aria-hidden="true">FADED.</div>
+
+    <main class="card">
+        <h1 class="card-title">Barber Login</h1>
+        <p class="card-subtitle">Access your dashboard.</p>
+
+        <div class="login-form">
+            <div class="field">
+                <label>Email</label>
+                <input @bind="_email" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <input @bind="_password" type="password" @onkeyup="@(async (e) => { if (e.Key == "Enter") await HandleLogin(); })" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="alert alert-error">@_error</p>
+            }
+
+            <button type="button" class="btn-primary" @onclick="HandleLogin" disabled="@_loading">
+                @(_loading ? "Logging in..." : "Log In")
+            </button>
+        </div>
+    </main>
+</div>
+
+@code {
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string _error = string.Empty;
+    private bool _loading = false;
+
+    private async Task HandleLogin()
+    {
+        _error = string.Empty;
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        {
+            _error = "Please enter your email and password.";
+            return;
+        }
+
+        _loading = true;
+        var (error, barber) = await AuthService.LogInBarber(_email, _password);
+        _loading = false;
+
+        if (error is not null)
+        {
+            _error = error;
+            return;
+        }
+
+        Nav.NavigateTo("/barber/dashboard");
+    }
+}

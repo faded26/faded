@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using Postgrest.Attributes;
 using Postgrest.Models;
 
@@ -33,9 +34,9 @@ public class Subscriber : BaseModel
     public string Status { get; set; } = "active"; // active | expired
 
     // Computed client-side only — never sent to Supabase
-    [JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public bool IsExpired => DateTime.UtcNow > CycleEnd || Status == "expired";
 
-    [JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public int CutsRemaining => Math.Max(0, 4 - CutsUsed);
 }

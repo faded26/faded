@@ -20,11 +20,23 @@ public class BookingService
         return result.Models;
     }
 
+    public async Task<List<Barber>> GetAllBarbers()
+    {
+        var result = await _supabase.Client.From<Barber>().Get();
+        return result.Models;
+    }
+
     public async Task<List<Service>> GetActiveServices()
     {
         var result = await _supabase.Client.From<Service>()
             .Where(s => s.Active == true)
             .Get();
+        return result.Models;
+    }
+
+    public async Task<List<Service>> GetAllServices()
+    {
+        var result = await _supabase.Client.From<Service>().Get();
         return result.Models;
     }
 
@@ -36,7 +48,43 @@ public class BookingService
         return result.Models;
     }
 
-    // Looks up a subscriber by their auth user id (after login/signup)
+    public async Task<BusinessSettings?> GetBusinessSettings()
+    {
+        var result = await _supabase.Client.From<BusinessSettings>()
+            .Where(s => s.Id == 1)
+            .Single();
+        return result;
+    }
+
+    public async Task<(string? Error, bool Success)> UpdateBusinessSettings(
+        string bankName, string accountHolder, string accountNumber,
+        string branchCode, string accountType, string referenceNote)
+    {
+        try
+        {
+            var existing = await _supabase.Client.From<BusinessSettings>()
+                .Where(s => s.Id == 1)
+                .Single();
+
+            if (existing is null)
+                return ("Settings row not found.", false);
+
+            existing.BankName = bankName;
+            existing.AccountHolder = accountHolder;
+            existing.AccountNumber = accountNumber;
+            existing.BranchCode = branchCode;
+            existing.AccountType = accountType;
+            existing.PaymentReferenceNote = referenceNote;
+
+            await _supabase.Client.From<BusinessSettings>().Update(existing);
+            return (null, true);
+        }
+        catch (Exception ex)
+        {
+            return (ex.Message, false);
+        }
+    }
+
     public async Task<Subscriber?> GetSubscriber(Guid userId)
     {
         var result = await _supabase.Client.From<Subscriber>()
@@ -45,7 +93,6 @@ public class BookingService
         return result;
     }
 
-    // Refreshes cycle status — call this whenever a subscriber logs in or books
     public async Task<Subscriber?> RefreshCycleStatus(Subscriber subscriber)
     {
         if (subscriber.IsExpired && subscriber.Status != "expired")
@@ -65,13 +112,9 @@ public class BookingService
         var path = $"{Guid.NewGuid()}_{fileName}";
         var bucket = _supabase.Client.Storage.From("proof-of-payments");
         await bucket.Upload(bytes, path);
-        return path; // store this path in bookings.proof_of_payment_url
+        return path;
     }
 
-    // The core rule: subscription bookings auto-confirm ONLY if cuts remain.
-    // If the subscriber is over their limit, the caller must have already
-    // switched payment_method to cash/card and attached proof if needed —
-    // this method just decides status + decrements the counter when applicable.
     public class BookingResult
     {
         public Guid? Id { get; set; }
@@ -79,10 +122,6 @@ public class BookingService
         public string? Error { get; set; }
     }
 
-    // Booking creation now happens entirely server-side via the create-booking
-    // Edge Function (service role) — the client no longer writes to bookings
-    // or subscribers directly, avoiding the RLS/PII exposure that direct
-    // table access would require.
     public async Task<BookingResult> SubmitBooking(Booking booking)
     {
         var payload = new
@@ -111,7 +150,6 @@ public class BookingService
                     "application/json")
             };
 
-            // Forward the current session token if logged in, otherwise the anon key
             var accessToken = _supabase.Client.Auth.CurrentSession?.AccessToken ?? _supabase.AnonKey;
             request.Headers.Add("Authorization", $"Bearer {accessToken}");
             request.Headers.Add("apikey", _supabase.AnonKey);
@@ -129,20 +167,147 @@ public class BookingService
         }
     }
 
-    // Calls the Supabase Edge Function that sends the barber their alert email.
-    // The function looks up the barber's email server-side and includes full
-    // booking details: payment type, subscriber id if applicable, etc.
-    public async Task NotifyBarber(Booking booking)
+    // ---------- Barber dashboard ----------
+
+    public async Task<Barber?> GetBarberByAuthId(Guid authUserId)
+    {
+        var result = await _supabase.Client.From<Barber>()
+            .Where(b => b.AuthUserId == authUserId)
+            .Single();
+        return result;
+    }
+
+    public async Task<List<Booking>> GetDashboardBookings()
+    {
+        var result = await _supabase.Client.From<Booking>()
+            .Order("booking_date", Postgrest.Constants.Ordering.Descending)
+            .Order("booking_time", Postgrest.Constants.Ordering.Descending)
+            .Get();
+        return result.Models;
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateBookingStatus(Guid bookingId, string status)
     {
         try
         {
-            var payload = System.Text.Json.JsonSerializer.Serialize(new { booking_id = booking.Id });
-            await _supabase.Client.Functions.Invoke("notify-barber", payload);
+            var existing = await _supabase.Client.From<Booking>()
+                .Where(b => b.Id == bookingId)
+                .Single();
+
+            if (existing is null)
+                return (false, "Booking not found.");
+
+            existing.Status = status;
+            await _supabase.Client.From<Booking>().Update(existing);
+            return (true, null);
         }
-        catch
+        catch (Exception ex)
         {
-            // Booking is already saved — a failed notification shouldn't block the customer.
-            // Worth adding real logging here later.
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(string? Error, bool Success)> AddBarber(string name, string email, string? phone, string password)
+    {
+        var payload = new { name, email, phone, password };
+        try
+        {
+            using var http = new HttpClient();
+            var functionUrl = $"{_supabase.Url.TrimEnd('/')}/functions/v1/add-barber";
+
+            var request = new HttpRequestMessage(HttpMethod.Post, functionUrl)
+            {
+                Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+
+            var accessToken = _supabase.Client.Auth.CurrentSession?.AccessToken ?? _supabase.AnonKey;
+            request.Headers.Add("Authorization", $"Bearer {accessToken}");
+            request.Headers.Add("apikey", _supabase.AnonKey);
+
+            var response = await http.SendAsync(request);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(responseJson);
+                var hasError = doc.RootElement.TryGetProperty("error", out var errProp);
+                var err = hasError ? errProp.GetString() : "Could not add barber.";
+                return (err, false);
+            }
+
+            return (null, true);
+        }
+        catch (Exception ex)
+        {
+            return (ex.Message, false);
+        }
+    }
+
+    // ---------- Owner: service management ----------
+
+    public async Task<(string? Error, bool Success)> CreateService(string name, decimal price, int durationMinutes)
+    {
+        try
+        {
+            await _supabase.Client.From<Service>().Insert(new Service
+            {
+                Name = name,
+                Price = price,
+                DurationMinutes = durationMinutes,
+                Active = true
+            });
+            return (null, true);
+        }
+        catch (Exception ex)
+        {
+            return (ex.Message, false);
+        }
+    }
+
+    public async Task<(string? Error, bool Success)> UpdateService(Guid id, string name, decimal price, int durationMinutes)
+    {
+        try
+        {
+            var existing = await _supabase.Client.From<Service>()
+                .Where(s => s.Id == id)
+                .Single();
+
+            if (existing is null)
+                return ("Service not found.", false);
+
+            existing.Name = name;
+            existing.Price = price;
+            existing.DurationMinutes = durationMinutes;
+            await _supabase.Client.From<Service>().Update(existing);
+            return (null, true);
+        }
+        catch (Exception ex)
+        {
+            return (ex.Message, false);
+        }
+    }
+
+    public async Task<(string? Error, bool Success)> SetServiceActive(Guid id, bool active)
+    {
+        try
+        {
+            var existing = await _supabase.Client.From<Service>()
+                .Where(s => s.Id == id)
+                .Single();
+
+            if (existing is null)
+                return ("Service not found.", false);
+
+            existing.Active = active;
+            await _supabase.Client.From<Service>().Update(existing);
+            return (null, true);
+        }
+        catch (Exception ex)
+        {
+            return (ex.Message, false);
         }
     }
 }

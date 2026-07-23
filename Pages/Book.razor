@@ -7,161 +7,185 @@
 
 <PageTitle>Book a Cut - Faded</PageTitle>
 
-<div class="booking-page">
-    <h1>Book Your Cut</h1>
+<div class="page">
+    <div class="watermark" aria-hidden="true">FADED.</div>
 
-    @if (_barbers is null || _services is null)
-    {
-        <p>Loading...</p>
-    }
-    else
-    {
-        <div class="booking-form">
+    <header class="topbar">
+        <span class="wordmark">FADED.</span>
+    </header>
 
-            <label>Your Name</label>
-            <input @bind="_customerName" placeholder="Full name" />
+    <main class="card">
+        <h1 class="card-title">Book Your Cut</h1>
+        <p class="card-subtitle">Pick a service, a barber, and how you'll pay.</p>
 
-            <label>Email</label>
-            <input @bind="_customerEmail" type="email" placeholder="you@example.com" />
+        @if (_barbers is null || _services is null)
+        {
+            <p class="loading">Loading...</p>
+        }
+        else
+        {
+            <div class="booking-form">
 
-            <label>Phone</label>
-            <input @bind="_customerPhone" placeholder="082 123 4567" />
-
-            <label>Service</label>
-            <select @bind="_selectedServiceId">
-                <option value="">-- Choose a service --</option>
-                @foreach (var service in _services)
-                {
-                    <option value="@service.Id">@service.Name — R@(service.Price)</option>
-                }
-            </select>
-
-            <label>Barber</label>
-            <select @bind="_selectedBarberId">
-                <option value="">-- Choose a barber --</option>
-                @foreach (var barber in _barbers)
-                {
-                    <option value="@barber.Id">@barber.Name</option>
-                }
-            </select>
-
-            <label>Date</label>
-            <input @bind="_bookingDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" />
-
-            <label>Time</label>
-            <input @bind="_bookingTime" type="time" />
-
-            <label>Payment Method</label>
-            <div class="payment-methods">
-                <label><input type="radio" name="payment" value="@PaymentMethod.Cash"
-                    checked="@(_paymentMethod == PaymentMethod.Cash)"
-                    @onchange="@(() => _paymentMethod = PaymentMethod.Cash)" /> Cash</label>
-
-                <label><input type="radio" name="payment" value="@PaymentMethod.Card"
-                    checked="@(_paymentMethod == PaymentMethod.Card)"
-                    @onchange="@(() => _paymentMethod = PaymentMethod.Card)" /> Card (Transfer)</label>
-
-                <label><input type="radio" name="payment" value="@PaymentMethod.Subscription"
-                    checked="@(_paymentMethod == PaymentMethod.Subscription)"
-                    @onchange="@(() => _paymentMethod = PaymentMethod.Subscription)" /> Subscription</label>
-            </div>
-
-            @if (_paymentMethod == PaymentMethod.Card)
-            {
-                <div class="card-upload-section">
-                    <label>Upload Proof of Payment</label>
-                    <InputFile OnChange="OnProofFileSelected" accept="image/*,.pdf" />
-                    @if (_proofFile is not null)
-                    {
-                        <p class="file-selected">Selected: @_proofFile.Name</p>
-                    }
-                </div>
-            }
-
-            @if (_paymentMethod == PaymentMethod.Subscription)
-            {
-                <div class="subscription-section">
-                    @if (_currentSubscriber is null)
-                    {
-                        <div class="auth-toggle">
-                            <button type="button" @onclick="@(() => _showSignup = false)"
-                                class="@(_showSignup ? "" : "active")">Log In</button>
-                            <button type="button" @onclick="@(() => _showSignup = true)"
-                                class="@(_showSignup ? "active" : "")">Sign Up</button>
-                        </div>
-
+                <div class="field-grid">
+                    <div class="field">
+                        <label>Your Name</label>
+                        <input @bind="_customerName" placeholder="Full name" />
+                    </div>
+                    <div class="field">
                         <label>Email</label>
-                        <input @bind="_authEmail" type="email" placeholder="you@example.com" />
+                        <input @bind="_customerEmail" type="email" placeholder="you@example.com" />
+                    </div>
+                    <div class="field">
+                        <label>Phone</label>
+                        <input @bind="_customerPhone" placeholder="082 123 4567" />
+                    </div>
+                </div>
 
-                        <label>Password</label>
-                        <input @bind="_authPassword" type="password" />
-
-                        @if (_showSignup)
+                <div class="field">
+                    <label>Service</label>
+                    <select @bind="_selectedServiceId">
+                        <option value="">-- Choose a service --</option>
+                        @foreach (var service in _services)
                         {
-                            <label>Choose a Plan</label>
-                            <select @bind="_selectedPlanId">
-                                <option value="">-- Choose a plan --</option>
-                                @foreach (var plan in _plans ?? new())
-                                {
-                                    <option value="@plan.Id">@plan.Name — R@plan.Price / @plan.CutsIncluded cuts</option>
-                                }
-                            </select>
-                            <p class="note">Your plan locks you to the barber selected above and runs for 30 days from today.</p>
-                            <button type="button" @onclick="HandleSignup">Sign Up &amp; Continue</button>
+                            <option value="@service.Id">@service.Name — R@(service.Price)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="field-grid">
+                    <div class="field">
+                        <label>Barber</label>
+                        <select @bind="_selectedBarberId">
+                            <option value="">-- Choose a barber --</option>
+                            @foreach (var barber in _barbers)
+                            {
+                                <option value="@barber.Id">@barber.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Date</label>
+                        <input @bind="_bookingDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="field">
+                        <label>Time</label>
+                        <input @bind="_bookingTime" type="time" />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Payment Method</label>
+                    <div class="payment-options">
+                        <label class="payment-pill @(_paymentMethod == PaymentMethod.Cash ? "active" : "")">
+                            <input type="radio" name="payment" value="@PaymentMethod.Cash"
+                                checked="@(_paymentMethod == PaymentMethod.Cash)"
+                                @onchange="@(() => _paymentMethod = PaymentMethod.Cash)" /> Cash
+                        </label>
+                        <label class="payment-pill @(_paymentMethod == PaymentMethod.Card ? "active" : "")">
+                            <input type="radio" name="payment" value="@PaymentMethod.Card"
+                                checked="@(_paymentMethod == PaymentMethod.Card)"
+                                @onchange="@(() => _paymentMethod = PaymentMethod.Card)" /> Card (Transfer)
+                        </label>
+                        <label class="payment-pill @(_paymentMethod == PaymentMethod.Subscription ? "active" : "")">
+                            <input type="radio" name="payment" value="@PaymentMethod.Subscription"
+                                checked="@(_paymentMethod == PaymentMethod.Subscription)"
+                                @onchange="@(() => _paymentMethod = PaymentMethod.Subscription)" /> Subscription
+                        </label>
+                    </div>
+                </div>
+
+                @if (_paymentMethod == PaymentMethod.Card)
+                {
+                    @if (_settings is not null)
+                    {
+                        <div class="bank-details">
+                            <p class="bank-details-title">Pay via bank transfer:</p>
+                            <p>@_settings.BankName &mdash; @_settings.AccountHolder</p>
+                            <p>Acc: @_settings.AccountNumber &middot; Branch: @_settings.BranchCode &middot; @_settings.AccountType</p>
+                            <p class="bank-note">@_settings.PaymentReferenceNote</p>
+                        </div>
+                    }
+                    <div class="upload-box">
+                        <label>Upload Proof of Payment</label>
+                        <InputFile OnChange="OnProofFileSelected" accept="image/*,.pdf" />
+                        @if (_proofFile is not null)
+                        {
+                            <p class="file-selected">Selected: @_proofFile.Name</p>
+                        }
+                    </div>
+                }
+
+                @if (_paymentMethod == PaymentMethod.Subscription)
+                {
+                    <div class="subscription-panel">
+                        @if (_currentSubscriber is null)
+                        {
+                            <p class="note">Already subscribed? Log in below to use it for this booking.</p>
+                            <div class="field">
+                                <label>Email</label>
+                                <input @bind="_authEmail" type="email" placeholder="you@example.com" />
+                            </div>
+                            <div class="field">
+                                <label>Password</label>
+                                <input @bind="_authPassword" type="password" />
+                            </div>
+                            <button type="button" class="btn-secondary" @onclick="HandleLogin">Log In</button>
+
+                            @if (!string.IsNullOrEmpty(_authError))
+                            {
+                                <p class="alert alert-error">@_authError</p>
+                            }
+
+                            <p class="note">Not subscribed yet? <a href="@SubscribeLink" style="color:var(--accent);">Sign up for a subscription</a> — it only takes a minute.</p>
                         }
                         else
                         {
-                            <button type="button" @onclick="HandleLogin">Log In</button>
+                            <div class="subscriber-status">
+                                @if (_currentSubscriber.IsExpired)
+                                {
+                                    <p class="alert alert-error">Your subscription expired on @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be treated as Cash/Card.</p>
+                                }
+                                else if (_currentSubscriber.CutsRemaining == 0)
+                                {
+                                    <p class="alert alert-warning">You've used all your cuts this cycle (renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy")). This booking will need Cash or Card payment instead.</p>
+                                }
+                                else
+                                {
+                                    <p class="alert alert-success">@_currentSubscriber.CutsRemaining cut(s) remaining — cycle renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be auto-confirmed.</p>
+                                }
+                            </div>
                         }
+                    </div>
+                }
 
-                        @if (!string.IsNullOrEmpty(_authError))
-                        {
-                            <p class="error">@_authError</p>
-                        }
-                    }
-                    else
-                    {
-                        <div class="subscriber-status">
-                            @if (_currentSubscriber.IsExpired)
-                            {
-                                <p class="error">Your subscription expired on @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be treated as Cash/Card.</p>
-                            }
-                            else if (_currentSubscriber.CutsRemaining == 0)
-                            {
-                                <p class="warning">You've used all your cuts this cycle (renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy")). This booking will need Cash or Card payment instead.</p>
-                            }
-                            else
-                            {
-                                <p class="success">@_currentSubscriber.CutsRemaining cut(s) remaining — cycle renews @_currentSubscriber.CycleEnd.ToString("dd MMM yyyy"). This booking will be auto-confirmed.</p>
-                            }
-                        </div>
-                    }
-                </div>
-            }
+                @if (!string.IsNullOrEmpty(_submitError))
+                {
+                    <p class="alert alert-error">@_submitError</p>
+                }
 
-            @if (!string.IsNullOrEmpty(_submitError))
-            {
-                <p class="error">@_submitError</p>
-            }
+                @if (_submitted)
+                {
+                    <p class="alert alert-success">Booking submitted! You'll hear from us once it's confirmed.</p>
+                }
+                else
+                {
+                    <button type="button" class="btn-primary" @onclick="HandleSubmit" disabled="@_submitting">
+                        @(_submitting ? "Submitting..." : "Book Now")
+                    </button>
+                }
 
-            @if (_submitted)
-            {
-                <p class="success">Booking submitted! You'll hear from us once it's confirmed.</p>
-            }
-            else
-            {
-                <button type="button" @onclick="HandleSubmit" disabled="@_submitting">
-                    @(_submitting ? "Submitting..." : "Book Now")
-                </button>
-            }
+                <a href="@SubscribeLink" class="btn-secondary" style="text-align:center; text-decoration:none;">Sign Up for Subscription</a>
 
-        </div>
-    }
+            </div>
+        }
+    </main>
 </div>
 
 @code {
     private List<Barber>? _barbers;
     private List<Service>? _services;
+    private List<SubscriptionPlan>? _plans;
+    private BusinessSettings? _settings;
 
     private string _customerName = string.Empty;
     private string _customerEmail = string.Empty;
@@ -171,23 +195,29 @@
     private DateTime _bookingDate = DateTime.Today;
     private TimeOnly _bookingTime = new TimeOnly(9, 0);
 
-    private List<SubscriptionPlan>? _plans;
     private string _paymentMethod = PaymentMethod.Cash;
-
     private IBrowserFile? _proofFile;
 
-    private bool _showSignup = false;
     private string _authEmail = string.Empty;
     private string _authPassword = string.Empty;
     private string _selectedPlanId = string.Empty;
     private string _authError = string.Empty;
     private Subscriber? _currentSubscriber;
 
+    private string _submitError = string.Empty;
+    private bool _submitting = false;
+    private bool _submitted = false;
+
+    private string SubscribeLink => string.IsNullOrEmpty(_selectedBarberId)
+        ? "/subscribe"
+        : $"/subscribe?barberId={_selectedBarberId}";
+
     protected override async Task OnInitializedAsync()
     {
         _barbers = await BookingService.GetActiveBarbers();
         _services = await BookingService.GetActiveServices();
         _plans = await BookingService.GetActivePlans();
+        _settings = await BookingService.GetBusinessSettings();
     }
 
     private void OnProofFileSelected(InputFileChangeEventArgs e)
@@ -195,15 +225,22 @@
         _proofFile = e.File;
     }
 
-    private string _submitError = string.Empty;
-    private bool _submitting = false;
-    private bool _submitted = false;
+    private async Task HandleLogin()
+    {
+        _authError = string.Empty;
+        var (error, subscriber) = await AuthService.LogInSubscriber(_authEmail, _authPassword);
+        if (error is not null)
+        {
+            _authError = error;
+            return;
+        }
+        _currentSubscriber = subscriber;
+    }
 
     private async Task HandleSubmit()
     {
         _submitError = string.Empty;
 
-        // Basic validation
         if (string.IsNullOrWhiteSpace(_customerName) || string.IsNullOrWhiteSpace(_customerEmail))
         {
             _submitError = "Please fill in your name and email.";
@@ -232,7 +269,7 @@
             string? proofUrl = null;
             if (_proofFile is not null)
             {
-                await using var stream = _proofFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB cap
+                await using var stream = _proofFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
                 proofUrl = await BookingService.UploadProofOfPayment(stream, _proofFile.Name);
             }
 
@@ -260,45 +297,13 @@
 
             _submitted = true;
         }
-                finally
+        catch (Exception ex)
+        {
+            _submitError = $"Something went wrong: {ex.Message}";
+        }
+        finally
         {
             _submitting = false;
         }
-    }
-
-    private async Task HandleLogin()
-    {
-        _authError = string.Empty;
-        var (error, subscriber) = await AuthService.LogInSubscriber(_authEmail, _authPassword);
-        if (error is not null)
-        {
-            _authError = error;
-            return;
-        }
-        _currentSubscriber = subscriber;
-    }
-
-    private async Task HandleSignup()
-    {
-        _authError = string.Empty;
-        if (string.IsNullOrEmpty(_selectedPlanId))
-        {
-            _authError = "Please choose a plan.";
-            return;
-        }
-        if (string.IsNullOrEmpty(_selectedBarberId))
-        {
-            _authError = "Please choose a barber above first — your subscription locks to them.";
-            return;
-        }
-        var (error, subscriber) = await AuthService.SignUpSubscriber(
-            _authEmail, _authPassword, Guid.Parse(_selectedBarberId), Guid.Parse(_selectedPlanId));
-
-        if (error is not null)
-        {
-            _authError = error;
-            return;
-        }
-        _currentSubscriber = subscriber;
     }
 }

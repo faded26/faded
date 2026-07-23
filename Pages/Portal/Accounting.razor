@@ -1,0 +1,271 @@
+@page "/barber/accounting"
+@using Faded.Models
+@using Faded.Services
+@inject AuthService AuthService
+@inject BookingService BookingService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Accounting - Faded</PageTitle>
+
+<div class="page">
+    @if (_loading)
+    {
+        <p class="loading">Loading...</p>
+    }
+    else if (_barber is null || !_barber.IsOwner)
+    {
+        <p class="loading">Redirecting...</p>
+    }
+    else
+    {
+        <header class="topbar">
+            <span class="wordmark">FADED.</span>
+            <div class="topbar-right">
+                <a href="/barber/dashboard" class="nav-link">Dashboard</a>
+                <span class="who">@_barber.Name (Owner)</span>
+                <button class="btn-logout" @onclick="HandleLogout">Log Out</button>
+            </div>
+        </header>
+
+        <main class="content">
+            <h1 class="page-title">Accounting</h1>
+            <p class="page-subtitle">Based on @_completed.Count completed booking(s).</p>
+
+            <div style="display:flex; gap:0.6rem; margin-bottom:1.5rem;">
+                <button style="background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;" @onclick="DownloadCsv">Download CSV</button>
+                <button style="background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;" @onclick="DownloadPdf">Download PDF</button>
+            </div>
+
+            <section class="stat-row">
+                <div class="stat-card">
+                    <span class="stat-label">Today</span>
+                    <span class="stat-value">R@(RevenueSince(DateTime.Today))</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">This Week</span>
+                    <span class="stat-value">R@(RevenueSince(DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek)))</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">This Month</span>
+                    <span class="stat-value">R@(RevenueSince(new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)))</span>
+                </div>
+                <div class="stat-card stat-card-total">
+                    <span class="stat-label">All Time</span>
+                    <span class="stat-value">R@(TotalRevenue)</span>
+                </div>
+            </section>
+
+            <section class="report-grid">
+                <div class="report-card">
+                    <h2>By Payment Method</h2>
+                    @foreach (var group in ByPaymentMethod())
+                    {
+                        <div class="report-row">
+                            <span class="report-label">@group.Method</span>
+                            <span class="report-bar-track">
+                                <span class="report-bar" style="width:@(group.Percent)%"></span>
+                            </span>
+                            <span class="report-amount">R@(group.Amount)</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="report-card">
+                    <h2>Subscription vs One-Off</h2>
+                    @foreach (var group in BySubscriptionSplit())
+                    {
+                        <div class="report-row">
+                            <span class="report-label">@group.Method</span>
+                            <span class="report-bar-track">
+                                <span class="report-bar" style="width:@(group.Percent)%"></span>
+                            </span>
+                            <span class="report-amount">R@(group.Amount)</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="report-card">
+                    <h2>Revenue Per Barber</h2>
+                    @foreach (var group in ByBarber())
+                    {
+                        <div class="report-row">
+                            <span class="report-label">@group.Name</span>
+                            <span class="report-bar-track">
+                                <span class="report-bar" style="width:@(group.Percent)%"></span>
+                            </span>
+                            <span class="report-amount">R@(group.Amount)</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="report-card">
+                    <h2>Top Services</h2>
+                    @foreach (var group in TopServices())
+                    {
+                        <div class="report-row">
+                            <span class="report-label">@group.Name <span class="report-count">(@group.Count)</span></span>
+                            <span class="report-bar-track">
+                                <span class="report-bar" style="width:@(group.Percent)%"></span>
+                            </span>
+                            <span class="report-amount">R@(group.Amount)</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        </main>
+    }
+</div>
+
+@code {
+    private Barber? _barber;
+    private List<Booking> _completed = new();
+    private List<Service> _services = new();
+    private List<Barber> _barbers = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _barber = await AuthService.GetCurrentBarber();
+        if (_barber is null)
+        {
+            Nav.NavigateTo("/barber/login");
+            return;
+        }
+        if (!_barber.IsOwner)
+        {
+            Nav.NavigateTo("/barber/dashboard");
+            return;
+        }
+
+        var allBookings = await BookingService.GetDashboardBookings();
+        _completed = allBookings.Where(b => b.Status == BookingStatus.Completed).ToList();
+        _services = await BookingService.GetAllServices();
+        _barbers = await BookingService.GetAllBarbers();
+
+        _loading = false;
+    }
+
+    private decimal PriceOf(Guid serviceId) => _services.FirstOrDefault(s => s.Id == serviceId)?.Price ?? 0;
+    private string ServiceNameOf(Guid serviceId) => _services.FirstOrDefault(s => s.Id == serviceId)?.Name ?? "—";
+    private string BarberNameOf(Guid barberId) => _barbers.FirstOrDefault(b => b.Id == barberId)?.Name ?? "—";
+
+    private decimal TotalRevenue => _completed.Sum(b => PriceOf(b.ServiceId));
+
+    private decimal RevenueSince(DateTime cutoff) =>
+        _completed.Where(b => b.BookingDate >= cutoff).Sum(b => PriceOf(b.ServiceId));
+
+    private record ReportRow(string Method, decimal Amount, decimal Percent);
+    private record ServiceRow(string Name, int Count, decimal Amount, decimal Percent);
+    private record BarberRow(string Name, decimal Amount, decimal Percent);
+
+    private List<ReportRow> ByPaymentMethod()
+    {
+        var total = TotalRevenue;
+        return _completed
+            .GroupBy(b => b.PaymentMethod)
+            .Select(g => new ReportRow(g.Key, g.Sum(b => PriceOf(b.ServiceId)), total == 0 ? 0 : g.Sum(b => PriceOf(b.ServiceId)) / total * 100))
+            .OrderByDescending(r => r.Amount)
+            .ToList();
+    }
+
+    private List<ReportRow> BySubscriptionSplit()
+    {
+        var total = TotalRevenue;
+        var subRevenue = _completed.Where(b => b.PaymentMethod == PaymentMethod.Subscription).Sum(b => PriceOf(b.ServiceId));
+        var oneOffRevenue = total - subRevenue;
+        return new List<ReportRow>
+        {
+            new("Subscription", subRevenue, total == 0 ? 0 : subRevenue / total * 100),
+            new("One-Off (Cash/Card)", oneOffRevenue, total == 0 ? 0 : oneOffRevenue / total * 100),
+        };
+    }
+
+    private List<BarberRow> ByBarber()
+    {
+        var total = TotalRevenue;
+        return _completed
+            .GroupBy(b => b.BarberId)
+            .Select(g => new BarberRow(BarberNameOf(g.Key), g.Sum(b => PriceOf(b.ServiceId)), total == 0 ? 0 : g.Sum(b => PriceOf(b.ServiceId)) / total * 100))
+            .OrderByDescending(r => r.Amount)
+            .ToList();
+    }
+
+    private List<ServiceRow> TopServices()
+    {
+        var total = TotalRevenue;
+        return _completed
+            .GroupBy(b => b.ServiceId)
+            .Select(g => new ServiceRow(ServiceNameOf(g.Key), g.Count(), g.Sum(b => PriceOf(b.ServiceId)), total == 0 ? 0 : g.Sum(b => PriceOf(b.ServiceId)) / total * 100))
+            .OrderByDescending(r => r.Amount)
+            .Take(5)
+            .ToList();
+    }
+
+    private string BuildCsv()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Faded Accounting Report");
+        sb.AppendLine($"Generated,{DateTime.Now:yyyy-MM-dd HH:mm}");
+        sb.AppendLine();
+        sb.AppendLine("Summary");
+        sb.AppendLine($"Today,R{RevenueSince(DateTime.Today)}");
+        sb.AppendLine($"This Week,R{RevenueSince(DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek))}");
+        sb.AppendLine($"This Month,R{RevenueSince(new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1))}");
+        sb.AppendLine($"All Time,R{TotalRevenue}");
+        sb.AppendLine();
+
+        void WriteSection(string title, IEnumerable<(string Label, decimal Amount)> rows)
+        {
+            sb.AppendLine(title);
+            foreach (var row in rows) sb.AppendLine($"{row.Label},R{row.Amount}");
+            sb.AppendLine();
+        }
+
+        WriteSection("By Payment Method", ByPaymentMethod().Select(r => (r.Method, r.Amount)));
+        WriteSection("Subscription vs One-Off", BySubscriptionSplit().Select(r => (r.Method, r.Amount)));
+        WriteSection("Revenue Per Barber", ByBarber().Select(r => (r.Name, r.Amount)));
+        WriteSection("Top Services", TopServices().Select(r => ($"{r.Name} ({r.Count})", r.Amount)));
+
+        return sb.ToString();
+    }
+
+    private async Task DownloadCsv()
+    {
+        var csv = BuildCsv();
+        var filename = $"faded-accounting-{DateTime.Now:yyyy-MM-dd}.csv";
+        await JS.InvokeVoidAsync("downloadCsv", filename, csv);
+    }
+
+    private async Task DownloadPdf()
+    {
+        var payload = new
+        {
+            generatedAt = $"Generated {DateTime.Now:dd MMM yyyy, HH:mm}",
+            summary = new[]
+            {
+                new { label = "Today", value = RevenueSince(DateTime.Today) },
+                new { label = "This Week", value = RevenueSince(DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek)) },
+                new { label = "This Month", value = RevenueSince(new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)) },
+                new { label = "All Time", value = TotalRevenue },
+            },
+            sections = new object[]
+            {
+                new { title = "By Payment Method", rows = ByPaymentMethod().Select(r => new { label = r.Method, amount = r.Amount }) },
+                new { title = "Subscription vs One-Off", rows = BySubscriptionSplit().Select(r => new { label = r.Method, amount = r.Amount }) },
+                new { title = "Revenue Per Barber", rows = ByBarber().Select(r => new { label = r.Name, amount = r.Amount }) },
+                new { title = "Top Services", rows = TopServices().Select(r => new { label = $"{r.Name} ({r.Count})", amount = r.Amount }) },
+            }
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(payload);
+        var filename = $"faded-accounting-{DateTime.Now:yyyy-MM-dd}.pdf";
+        await JS.InvokeVoidAsync("downloadPdf", filename, json);
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogOut();
+        Nav.NavigateTo("/barber/login");
+    }
+}

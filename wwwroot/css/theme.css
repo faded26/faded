@@ -1,0 +1,60 @@
+:root {
+  --bg: #f4f1ea;
+  --surface: #ffffff;
+  --surface-raised: #ece6d8;
+  --ink: #141414;
+  --ink-muted: #5c584f;
+  --accent: #c9a24b;
+  --accent-dark: #a8842f;
+  --border: #141414;
+  --danger: #b3432b;
+  --success: #4f7a56;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  margin: 0;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Anton', sans-serif;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.btn-block {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--bg);
+  border: 2px solid var(--ink);
+  padding: 0.85rem 1.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 5px 5px 0 var(--accent);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn-block:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--accent);
+}
+
+.btn-block-outline {
+  display: inline-block;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  padding: 0.85rem 1.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}

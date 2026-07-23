@@ -1,7 +1,128 @@
-﻿@page "/"
+@page "/"
+@using Faded.Models
+@using Faded.Services
+@inject BookingService BookingService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Faded Barbershop</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home">
 
-Welcome to your new app.
+    <header class="hero">
+        <a href="/barber/login" class="staff-btn">Barber Login</a>
+        <div class="hero-inner">
+            <span class="wordmark">FADED.</span>
+            <p class="tagline">Pimville, Soweto — Fresh cuts, no shortcuts.</p>
+            <div class="hero-ctas">
+                <a href="/book" class="btn-block">Book Now</a>
+                <a href="/subscribe" class="btn-block-outline">Sign Up for Subscription</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="section services-section">
+        <h2>Services</h2>
+        @if (_services is null)
+        {
+            <p class="loading">Loading...</p>
+        }
+        else
+        {
+            <div class="services-grid">
+                @foreach (var service in _services)
+                {
+                    <div class="service-card">
+                        <span class="service-name">@service.Name</span>
+                        <span class="service-price">R@(service.Price)</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="section barbers-section">
+        <h2>Meet the Barbers</h2>
+        @if (_barbers is null)
+        {
+            <p class="loading">Loading...</p>
+        }
+        else
+        {
+            <div class="barbers-grid">
+                @foreach (var barber in _barbers)
+                {
+                    <div class="barber-card">
+                        <div class="barber-avatar">@barber.Name.Substring(0, 1)</div>
+                        <span class="barber-name">@barber.Name</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="section plans-section">
+        <h2>Subscription Plans</h2>
+        @if (_plans is null)
+        {
+            <p class="loading">Loading...</p>
+        }
+        else if (!_plans.Any())
+        {
+            <p class="empty">No active plans right now.</p>
+        }
+        else
+        {
+            <div class="plans-grid">
+                @foreach (var plan in _plans)
+                {
+                    <div class="plan-card">
+                        <span class="plan-name">@plan.Name</span>
+                        <span class="plan-price">R@(plan.Price)<span class="plan-period">/30 days</span></span>
+                        <span class="plan-cuts">@plan.CutsIncluded cuts included</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="section gallery-section">
+        <h2>Gallery</h2>
+        <div class="gallery-grid">
+            @for (int i = 0; i < 6; i++)
+            {
+                <div class="gallery-tile">Photo coming soon</div>
+            }
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-block">
+            <h3>Location</h3>
+            <p>Pimville, Soweto</p>
+        </div>
+        <div class="footer-block">
+            <h3>Hours</h3>
+            <p>10:00 &ndash; 18:00, daily</p>
+        </div>
+        <div class="footer-block">
+            <h3>Follow</h3>
+            <p class="placeholder-link">Instagram — coming soon</p>
+        </div>
+        <div class="footer-cta">
+            <a href="/book" class="btn-block-outline">Book Now</a>
+        </div>
+    </footer>
+
+</div>
+
+@code {
+    private List<Service>? _services;
+    private List<Barber>? _barbers;
+    private List<SubscriptionPlan>? _plans;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _services = await BookingService.GetActiveServices();
+        _barbers = await BookingService.GetActiveBarbers();
+        _plans = await BookingService.GetActivePlans();
+    }
+}

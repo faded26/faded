@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using Postgrest.Attributes;
 using Postgrest.Models;
 
@@ -66,6 +67,6 @@ public class Booking : BaseModel
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Auto-confirm rule lives here so it's obvious at a glance
-    [JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
     public bool RequiresApproval => PaymentMethod != Faded.Models.PaymentMethod.Subscription;
 }

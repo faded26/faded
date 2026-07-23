@@ -16,6 +16,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader !== `Bearer ${SERVICE_ROLE_KEY}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { booking_id } = await req.json();
     if (!booking_id) {
