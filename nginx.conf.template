@@ -4,8 +4,11 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    types {
-        application/wasm wasm;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    location ~ \.wasm$ {
+        default_type application/wasm;
     }
 
     location / {
