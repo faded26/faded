@@ -5,7 +5,7 @@
   --border: #2c2c31;
   --text: #f2efe9;
   --text-muted: #a3a09b;
-  --accent: #cf6b7a;
+  --accent: #c9a24b;
   --danger: #b3432b;
   --danger-bg: #2a1815;
   --success: #6b8f71;
@@ -272,9 +272,7 @@
 }
 
 .toggle-panel {
-  background: rgba(23, 23, 26, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: #000000;
   border: 1px solid var(--accent);
   color: var(--accent);
   border-radius: 8px;
@@ -283,10 +281,12 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .toggle-panel:hover {
-  background: rgba(179, 73, 90, 0.15);
+  background: var(--accent);
+  color: #000000;
 }
 
 .panel-form {
