@@ -87,9 +87,32 @@
 }
 
 .page-subtitle {
-  color: var(--text-muted);
+  color: #000000;
   font-size: 0.88rem;
   margin: 0 0 2rem;
+}
+
+.download-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn-download {
+  background: #000000;
+  border: 1px solid #000000;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-download:hover {
+  background: #1b6ec2;
+  border-color: #1b6ec2;
 }
 
 .stat-row {

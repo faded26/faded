@@ -32,9 +32,9 @@
             <h1 class="page-title">Accounting</h1>
             <p class="page-subtitle">Based on @_completed.Count completed booking(s).</p>
 
-            <div style="display:flex; gap:0.6rem; margin-bottom:1.5rem;">
-                <button style="background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;" @onclick="DownloadCsv">Download CSV</button>
-                <button style="background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:0.55rem 1rem;font-size:0.85rem;font-weight:600;cursor:pointer;" @onclick="DownloadPdf">Download PDF</button>
+            <div class="download-row">
+                <button class="btn-download" @onclick="DownloadCsv">Download CSV</button>
+                <button class="btn-download" @onclick="DownloadPdf">Download PDF</button>
             </div>
 
             <section class="stat-row">
