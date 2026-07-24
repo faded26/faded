@@ -1,0 +1,139 @@
+@using Faded.Models
+@inject IJSRuntime JS
+
+<div class="modal-backdrop" @onclick="Close">
+    <div class="modal-panel" @onclick:stopPropagation="true">
+        <div class="modal-header">
+            <span class="modal-title">Booking Confirmed</span>
+            <button class="modal-close" @onclick="Close">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="modal-summary">
+                <div class="summary-row"><span class="summary-label">Customer</span><span>@Booking.CustomerName</span></div>
+                <div class="summary-row"><span class="summary-label">When</span><span>@Booking.BookingDate.ToString("dddd, dd MMMM") at @FormatTime(Booking.BookingTime)</span></div>
+                <div class="summary-row"><span class="summary-label">Barber</span><span>@BarberName</span></div>
+                <div class="summary-row"><span class="summary-label">Service</span><span>@ServiceName — R@ServicePrice</span></div>
+                @if (!string.IsNullOrEmpty(Booking.CustomerPhone))
+                {
+                    <div class="summary-row"><span class="summary-label">Phone</span><span>@Booking.CustomerPhone</span></div>
+                }
+            </div>
+
+            @if (Booking.PaymentMethod == PaymentMethod.Card)
+            {
+                <div class="modal-section">
+                    <p class="section-title">Proof of Payment</p>
+                    @if (!string.IsNullOrEmpty(ProofUrl))
+                    {
+                        <a href="@ProofUrl" target="_blank" class="proof-link">View attachment &rarr;</a>
+                    }
+                    else
+                    {
+                        <p class="note">Could not load the attachment link.</p>
+                    }
+                </div>
+            }
+
+            @if (Booking.PaymentMethod == PaymentMethod.Subscription && Subscriber is not null)
+            {
+                <div class="modal-section">
+                    <p class="section-title">Subscription</p>
+                    <p class="sub-detail">@Subscriber.CutsRemaining cut(s) remaining &middot; renews @Subscriber.CycleEnd.ToString("dd MMM yyyy")</p>
+                </div>
+            }
+
+            <div class="modal-section">
+                <p class="section-title">WhatsApp the client</p>
+                <p class="note">Remind the client their booking is confirmed:</p>
+                <div class="whatsapp-box">@WhatsAppMessage</div>
+                <div class="modal-actions">
+                    <button class="btn-copy" @onclick="CopyMessage">@(_copied ? "Copied!" : "Copy Message")</button>
+                    @if (!string.IsNullOrEmpty(WhatsAppLink))
+                    {
+                        <a href="@WhatsAppLink" target="_blank" class="btn-whatsapp">Open in WhatsApp</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Booking Booking { get; set; } = default!;
+    [Parameter] public string ServiceName { get; set; } = "";
+    [Parameter] public decimal ServicePrice { get; set; }
+    [Parameter] public string BarberName { get; set; } = "";
+    [Parameter] public Subscriber? Subscriber { get; set; }
+    [Parameter] public string? ProofUrl { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool _copied = false;
+
+    private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+
+    private string WhatsAppMessage
+    {
+        get
+        {
+            var firstName = Booking.CustomerName.Split(' ')[0];
+            var when = $"{Booking.BookingDate:dddd, dd MMMM} at {FormatTime(Booking.BookingTime)}";
+
+            if (Booking.PaymentMethod == PaymentMethod.Cash)
+            {
+                return $"Hi {firstName}! Your haircut is confirmed for {when} with {BarberName} at Faded. Please bring R{ServicePrice} in cash on the day. See you then! \U0001F488";
+            }
+
+            if (Booking.PaymentMethod == PaymentMethod.Card)
+            {
+                return $"Hi {firstName}! Your haircut is confirmed for {when} with {BarberName} at Faded. We've received your payment of R{ServicePrice} — thank you! See you then! \U0001F488";
+            }
+
+            if (Booking.PaymentMethod == PaymentMethod.Subscription && Subscriber is not null)
+            {
+                if (Subscriber.CutsRemaining > 0)
+                {
+                    var suggestedNext = Booking.BookingDate.AddDays(21).ToString("dd MMM yyyy");
+                    return $"Hi {firstName}! Your haircut is confirmed for {when} with {BarberName} at Faded. You have {Subscriber.CutsRemaining} cut(s) left on your subscription (renews {Subscriber.CycleEnd:dd MMM yyyy}). We'd suggest your next cut around {suggestedNext}. See you then! \U0001F488";
+                }
+
+                return $"Hi {firstName}! Your haircut is confirmed for {when} with {BarberName} at Faded. This uses your last cut for this cycle (renews {Subscriber.CycleEnd:dd MMM yyyy}). See you then! \U0001F488";
+            }
+
+            return $"Hi {firstName}! Your haircut is confirmed for {when} with {BarberName} at Faded. See you then! \U0001F488";
+        }
+    }
+
+    private string WhatsAppLink
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Booking.CustomerPhone)) return string.Empty;
+
+            var digits = new string(Booking.CustomerPhone.Where(char.IsDigit).ToArray());
+            if (digits.StartsWith("0")) digits = "27" + digits.Substring(1);
+            if (digits.Length < 9) return string.Empty;
+
+            var encoded = Uri.EscapeDataString(WhatsAppMessage);
+            return $"https://wa.me/{digits}?text={encoded}";
+        }
+    }
+
+    private async Task CopyMessage()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", WhatsAppMessage);
+        _copied = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        _copied = false;
+        StateHasChanged();
+    }
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

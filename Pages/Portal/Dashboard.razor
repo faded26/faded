@@ -275,6 +275,17 @@
                 </div>
             }
         </main>
+
+        @if (_showConfirmModal && _confirmBooking is not null)
+        {
+            <BookingConfirmedModal Booking="_confirmBooking"
+                                   ServiceName="@ServiceName(_confirmBooking.ServiceId)"
+                                   ServicePrice="@ServicePrice(_confirmBooking.ServiceId)"
+                                   BarberName="@BarberName(_confirmBooking.BarberId)"
+                                   Subscriber="_confirmSubscriber"
+                                   ProofUrl="_confirmProofUrl"
+                                   OnClose="CloseConfirmModal" />
+        }
     }
 </div>
 
@@ -288,6 +299,11 @@
     private string _activeTab = "pending";
     private string? _actionError;
     private Guid? _updatingBookingId;
+
+    private bool _showConfirmModal = false;
+    private Booking? _confirmBooking;
+    private Subscriber? _confirmSubscriber;
+    private string? _confirmProofUrl;
 
     private bool _showAddBarber = false;
     private string _newBarberName = string.Empty;
@@ -392,6 +408,38 @@
 
         var booking = _bookings.FirstOrDefault(b => b.Id == bookingId);
         if (booking is not null) booking.Status = newStatus;
+
+        if (newStatus == BookingStatus.Approved && booking is not null)
+        {
+            await ShowConfirmModal(booking);
+        }
+    }
+
+    private async Task ShowConfirmModal(Booking booking)
+    {
+        _confirmSubscriber = null;
+        _confirmProofUrl = null;
+
+        if (booking.PaymentMethod == PaymentMethod.Subscription && booking.SubscriberId.HasValue)
+        {
+            _confirmSubscriber = await BookingService.GetSubscriber(booking.SubscriberId.Value);
+        }
+
+        if (booking.PaymentMethod == PaymentMethod.Card && !string.IsNullOrEmpty(booking.ProofOfPaymentUrl))
+        {
+            _confirmProofUrl = await BookingService.GetProofOfPaymentUrl(booking.ProofOfPaymentUrl);
+        }
+
+        _confirmBooking = booking;
+        _showConfirmModal = true;
+    }
+
+    private void CloseConfirmModal()
+    {
+        _showConfirmModal = false;
+        _confirmBooking = null;
+        _confirmSubscriber = null;
+        _confirmProofUrl = null;
     }
 
     private async Task HandleAddBarber()

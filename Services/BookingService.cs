@@ -103,6 +103,20 @@ public class BookingService
         return subscriber;
     }
 
+    public async Task<string?> GetProofOfPaymentUrl(string path)
+    {
+        try
+        {
+            var bucket = _supabase.Client.Storage.From("proof-of-payments");
+            var signedUrl = await bucket.CreateSignedUrl(path, 3600);
+            return signedUrl;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<string> UploadProofOfPayment(Stream fileStream, string fileName)
     {
         using var memoryStream = new MemoryStream();
