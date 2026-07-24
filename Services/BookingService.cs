@@ -109,7 +109,14 @@ public class BookingService
         {
             var bucket = _supabase.Client.Storage.From("proof-of-payments");
             var signedUrl = await bucket.CreateSignedUrl(path, 3600);
-            return signedUrl;
+
+            if (string.IsNullOrEmpty(signedUrl))
+                return null;
+
+            if (signedUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                return signedUrl;
+
+            return $"{_supabase.Url.TrimEnd('/')}/storage/v1{signedUrl}";
         }
         catch
         {
