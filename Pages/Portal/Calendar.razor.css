@@ -1,0 +1,97 @@
+::deep {
+  --bg: #0e0e10;
+  --surface: #17171a;
+  --surface-raised: #1f1f23;
+  --border: #2c2c31;
+  --text: #f2efe9;
+  --text-muted: #a3a09b;
+  --accent: #c9a24b;
+  --danger: #b3432b;
+  --danger-bg: #2a1815;
+  --success: #6b8f71;
+  --success-bg: #16211a;
+}
+
+.page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(14, 14, 16, 0.25), rgba(14, 14, 16, 0.4)),
+    url('/images/faded-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--text);
+}
+
+.loading {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  background: rgba(20, 17, 15, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.wordmark {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.who {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.nav-link:hover {
+  color: var(--accent);
+}
+
+.content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page-title {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.6rem;
+  margin-bottom: 1.25rem;
+  color: var(--text);
+}

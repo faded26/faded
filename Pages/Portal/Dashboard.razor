@@ -1,6 +1,7 @@
 @page "/barber/dashboard"
 @using Faded.Models
 @using Faded.Services
+@using Faded.Components.Booking
 @inject AuthService AuthService
 @inject BookingService BookingService
 @inject NavigationManager Nav
@@ -24,6 +25,10 @@
                 @if (_barber.IsOwner)
                 {
                     <a href="/barber/accounting" class="nav-link">Accounting</a>
+                }
+                else
+                {
+                    <a href="/barber/calendar" class="nav-link">My Calendar</a>
                 }
                 <span class="who">@_barber.Name @(_barber.IsOwner ? "(Owner)" : "")</span>
                 <button class="btn-logout" @onclick="HandleLogout">Log Out</button>
@@ -193,6 +198,9 @@
                 <button class="tab @(_activeTab == "history" ? "active" : "")" @onclick='@(() => _activeTab = "history")'>
                     History
                 </button>
+                <button class="tab @(_activeTab == "calendar" ? "active" : "")" @onclick='@(() => _activeTab = "calendar")'>
+                    Calendar
+                </button>
             </div>
 
             @if (_actionError is not null)
@@ -200,58 +208,68 @@
                 <p class="alert alert-error">@_actionError</p>
             }
 
-            <div class="bookings-list">
-                @foreach (var booking in FilteredBookings())
-                {
-                    <div class="booking-card">
-                        <div class="booking-main">
-                            <div class="booking-when">
-                                <span class="date">@booking.BookingDate.ToString("ddd, dd MMM")</span>
-                                <span class="time">@FormatTime(booking.BookingTime)</span>
+            @if (_activeTab == "calendar")
+            {
+                <CalendarMonth Bookings="@_bookings.Where(b => b.Status == BookingStatus.PendingApproval || b.Status == BookingStatus.Approved || b.Status == BookingStatus.Completed).ToList()"
+                               ServiceName="ServiceName"
+                               ServicePrice="ServicePrice"
+                               BarberName="@(_barber.IsOwner ? BarberName : null)" />
+            }
+            else
+            {
+                <div class="bookings-list">
+                    @foreach (var booking in FilteredBookings())
+                    {
+                        <div class="booking-card">
+                            <div class="booking-main">
+                                <div class="booking-when">
+                                    <span class="date">@booking.BookingDate.ToString("ddd, dd MMM")</span>
+                                    <span class="time">@FormatTime(booking.BookingTime)</span>
+                                </div>
+                                <div class="booking-info">
+                                    <span class="customer">@booking.CustomerName</span>
+                                    <span class="detail">@ServiceName(booking.ServiceId) — R@(ServicePrice(booking.ServiceId))</span>
+                                    @if (_barber.IsOwner)
+                                    {
+                                        <span class="detail">Barber: @BarberName(booking.BarberId)</span>
+                                    }
+                                    <span class="detail">@booking.CustomerPhone &middot; @booking.CustomerEmail</span>
+                                </div>
+                                <div class="booking-meta">
+                                    <span class="badge badge-@booking.PaymentMethod">@booking.PaymentMethod</span>
+                                    <span class="badge status-@booking.Status">@booking.Status.Replace("_", " ")</span>
+                                </div>
                             </div>
-                            <div class="booking-info">
-                                <span class="customer">@booking.CustomerName</span>
-                                <span class="detail">@ServiceName(booking.ServiceId) — R@(ServicePrice(booking.ServiceId))</span>
-                                @if (_barber.IsOwner)
+
+                            <div class="booking-actions">
+                                @if (booking.Status == BookingStatus.PendingApproval)
                                 {
-                                    <span class="detail">Barber: @BarberName(booking.BarberId)</span>
+                                    <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Approved)">
+                                        @(_updatingBookingId == booking.Id ? "..." : "Approve")
+                                    </button>
+                                    <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Declined)">
+                                        @(_updatingBookingId == booking.Id ? "..." : "Decline")
+                                    </button>
                                 }
-                                <span class="detail">@booking.CustomerPhone &middot; @booking.CustomerEmail</span>
-                            </div>
-                            <div class="booking-meta">
-                                <span class="badge badge-@booking.PaymentMethod">@booking.PaymentMethod</span>
-                                <span class="badge status-@booking.Status">@booking.Status.Replace("_", " ")</span>
+                                else if (booking.Status == BookingStatus.Approved)
+                                {
+                                    <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Completed)">
+                                        @(_updatingBookingId == booking.Id ? "..." : "Mark Completed")
+                                    </button>
+                                    <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.NoShow)">
+                                        @(_updatingBookingId == booking.Id ? "..." : "No Show")
+                                    </button>
+                                }
                             </div>
                         </div>
+                    }
 
-                        <div class="booking-actions">
-                            @if (booking.Status == BookingStatus.PendingApproval)
-                            {
-                                <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Approved)">
-                                    @(_updatingBookingId == booking.Id ? "..." : "Approve")
-                                </button>
-                                <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Declined)">
-                                    @(_updatingBookingId == booking.Id ? "..." : "Decline")
-                                </button>
-                            }
-                            else if (booking.Status == BookingStatus.Approved)
-                            {
-                                <button class="btn-approve" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.Completed)">
-                                    @(_updatingBookingId == booking.Id ? "..." : "Mark Completed")
-                                </button>
-                                <button class="btn-decline" disabled="@(_updatingBookingId == booking.Id)" @onclick="() => HandleStatusChange(booking.Id, BookingStatus.NoShow)">
-                                    @(_updatingBookingId == booking.Id ? "..." : "No Show")
-                                </button>
-                            }
-                        </div>
-                    </div>
-                }
-
-                @if (!FilteredBookings().Any())
-                {
-                    <p class="empty">Nothing here.</p>
-                }
-            </div>
+                    @if (!FilteredBookings().Any())
+                    {
+                        <p class="empty">Nothing here.</p>
+                    }
+                </div>
+            }
         </main>
     }
 </div>

@@ -1,0 +1,133 @@
+@using Faded.Models
+
+<div class="calendar-wrap">
+    <div class="calendar-header">
+        <button class="cal-nav" @onclick="PrevMonth" aria-label="Previous month">&#8592;</button>
+        <span class="cal-month-label">@_viewMonth.ToString("MMMM yyyy")</span>
+        <button class="cal-nav" @onclick="NextMonth" aria-label="Next month">&#8594;</button>
+    </div>
+
+    <div class="cal-legend">
+        <span class="legend-item"><span class="dot dot-pending"></span> Pending</span>
+        <span class="legend-item"><span class="dot dot-confirmed"></span> Confirmed</span>
+        <span class="legend-item"><span class="dot dot-declined"></span> Declined</span>
+    </div>
+
+    <div class="calendar-grid">
+        @foreach (var dow in _dayNames)
+        {
+            <div class="cal-dow">@dow</div>
+        }
+        @foreach (var date in GetGridDates())
+        {
+            var inMonth = date.Month == _viewMonth.Month;
+            var dayBookings = BookingsFor(date);
+            <div class="cal-day @(inMonth ? "" : "cal-day-out") @(date.Date == DateTime.Today ? "cal-day-today" : "") @(_selectedDate.HasValue && _selectedDate.Value.Date == date.Date ? "cal-day-selected" : "")"
+                 @onclick="() => SelectDate(date)">
+                <span class="cal-day-num">@date.Day</span>
+                @if (dayBookings.Any())
+                {
+                    <div class="cal-day-dots">
+                        @{
+                            var pending = dayBookings.Count(b => b.Status == BookingStatus.PendingApproval);
+                            var confirmed = dayBookings.Count(b => b.Status == BookingStatus.Approved || b.Status == BookingStatus.Completed);
+                            var declined = dayBookings.Count(b => b.Status == BookingStatus.Declined || b.Status == BookingStatus.Cancelled || b.Status == BookingStatus.NoShow);
+                        }
+                        @if (pending > 0) { <span class="dot dot-pending">@pending</span> }
+                        @if (confirmed > 0) { <span class="dot dot-confirmed">@confirmed</span> }
+                        @if (declined > 0) { <span class="dot dot-declined">@declined</span> }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (_selectedDate.HasValue)
+    {
+        <div class="cal-day-panel">
+            <div class="cal-day-panel-header">
+                <span>@_selectedDate.Value.ToString("dddd, dd MMMM yyyy")</span>
+            </div>
+
+            @{
+                var bookingsToday = BookingsFor(_selectedDate.Value).OrderBy(b => b.BookingTime).ToList();
+            }
+
+            @if (!bookingsToday.Any())
+            {
+                <p class="cal-empty">No bookings this day.</p>
+            }
+            else
+            {
+                <div class="cal-booking-list">
+                    @foreach (var booking in bookingsToday)
+                    {
+                        <div class="cal-booking-card">
+                            <div class="cal-booking-main">
+                                <span class="cal-booking-time">@FormatTime(booking.BookingTime)</span>
+                                <span class="cal-booking-customer">@booking.CustomerName</span>
+                                <span class="cal-booking-detail">@ServiceName(booking.ServiceId) — R@(ServicePrice(booking.ServiceId))</span>
+                                @if (BarberName is not null)
+                                {
+                                    <span class="cal-booking-detail">Barber: @BarberName(booking.BarberId)</span>
+                                }
+                            </div>
+                            <span class="cal-status cal-status-@StatusClass(booking.Status)">@booking.Status.Replace("_", " ")</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<Booking> Bookings { get; set; } = new();
+    [Parameter] public Func<Guid, string> ServiceName { get; set; } = _ => "—";
+    [Parameter] public Func<Guid, decimal> ServicePrice { get; set; } = _ => 0;
+    [Parameter] public Func<Guid, string>? BarberName { get; set; }
+
+    private DateTime _viewMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? _selectedDate = DateTime.Today;
+
+    private static readonly string[] _dayNames = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+    private void PrevMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(-1);
+    }
+
+    private void NextMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(1);
+    }
+
+    private void SelectDate(DateTime date)
+    {
+        _selectedDate = date;
+    }
+
+    private List<DateTime> GetGridDates()
+    {
+        var firstOfMonth = _viewMonth;
+        var offset = (int)firstOfMonth.DayOfWeek;
+        var firstCell = firstOfMonth.AddDays(-offset);
+
+        var days = new List<DateTime>();
+        for (int i = 0; i < 42; i++)
+            days.Add(firstCell.AddDays(i));
+        return days;
+    }
+
+    private List<Booking> BookingsFor(DateTime date) =>
+        Bookings.Where(b => b.BookingDate.Date == date.Date).ToList();
+
+    private string StatusClass(string status)
+    {
+        if (status == BookingStatus.PendingApproval) return "pending";
+        if (status == BookingStatus.Approved || status == BookingStatus.Completed) return "confirmed";
+        return "declined";
+    }
+
+    private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+}

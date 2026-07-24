@@ -1,0 +1,69 @@
+@page "/barber/calendar"
+@using Faded.Models
+@using Faded.Services
+@using Faded.Components.Booking
+@inject AuthService AuthService
+@inject BookingService BookingService
+@inject NavigationManager Nav
+
+<PageTitle>My Calendar - Faded</PageTitle>
+
+<div class="page">
+    @if (_loading)
+    {
+        <p class="loading">Loading...</p>
+    }
+    else if (_barber is null)
+    {
+        <p class="loading">Redirecting to login...</p>
+    }
+    else
+    {
+        <header class="topbar">
+            <span class="wordmark">FADED.</span>
+            <div class="topbar-right">
+                <a href="/barber/dashboard" class="nav-link">Dashboard</a>
+                <span class="who">@_barber.Name</span>
+                <button class="btn-logout" @onclick="HandleLogout">Log Out</button>
+            </div>
+        </header>
+
+        <main class="content">
+            <h1 class="page-title">My Calendar</h1>
+            <CalendarMonth Bookings="@_myBookings" ServiceName="ServiceName" ServicePrice="ServicePrice" />
+        </main>
+    }
+</div>
+
+@code {
+    private Barber? _barber;
+    private List<Booking> _myBookings = new();
+    private List<Service> _services = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _barber = await AuthService.GetCurrentBarber();
+        if (_barber is null)
+        {
+            Nav.NavigateTo("/barber/login");
+            return;
+        }
+
+        var all = await BookingService.GetDashboardBookings();
+        _myBookings = all.Where(b => b.BarberId == _barber.Id
+            && (b.Status == BookingStatus.PendingApproval || b.Status == BookingStatus.Approved || b.Status == BookingStatus.Completed)).ToList();
+        _services = await BookingService.GetAllServices();
+
+        _loading = false;
+    }
+
+    private string ServiceName(Guid id) => _services.FirstOrDefault(s => s.Id == id)?.Name ?? "—";
+    private decimal ServicePrice(Guid id) => _services.FirstOrDefault(s => s.Id == id)?.Price ?? 0;
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogOut();
+        Nav.NavigateTo("/barber/login");
+    }
+}
