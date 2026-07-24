@@ -144,8 +144,105 @@
 }
 
 .cal-day-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-weight: 600;
   margin-bottom: 0.75rem;
+}
+
+.cal-book-btn {
+  background: #000000;
+  border: 1px solid var(--cal-accent);
+  color: var(--cal-accent);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cal-book-btn:hover {
+  background: var(--cal-accent);
+  color: #000000;
+}
+
+.cal-book-form {
+  background: rgba(23, 23, 26, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--cal-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.cal-book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.85rem;
+}
+
+.cal-book-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cal-book-field label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cal-text-muted);
+}
+
+.cal-book-field input,
+.cal-book-field select {
+  background: rgba(23, 23, 26, 0.8);
+  border: 1px solid var(--cal-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  color: var(--cal-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.cal-book-field input:focus,
+.cal-book-field select:focus {
+  outline: none;
+  border-color: var(--cal-accent);
+}
+
+.cal-book-error {
+  background: rgba(179, 67, 43, 0.15);
+  color: #e08b76;
+  border: 1px solid rgba(179, 67, 43, 0.4);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.cal-book-submit {
+  background: var(--cal-accent);
+  color: #000000;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.cal-book-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cal-empty {

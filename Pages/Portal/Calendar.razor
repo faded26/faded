@@ -30,7 +30,7 @@
 
         <main class="content">
             <h1 class="page-title">My Calendar</h1>
-            <CalendarMonth Bookings="@_myBookings" ServiceName="ServiceName" ServicePrice="ServicePrice" />
+            <CalendarMonth Bookings="@_myBookings" ServiceName="ServiceName" ServicePrice="ServicePrice" Services="@_services" FixedBarberId="_barber.Id" OnBookingCreated="ReloadBookings" />
         </main>
     }
 </div>
@@ -56,6 +56,13 @@
         _services = await BookingService.GetAllServices();
 
         _loading = false;
+    }
+
+    private async Task ReloadBookings()
+    {
+        var all = await BookingService.GetDashboardBookings();
+        _myBookings = all.Where(b => b.BarberId == _barber!.Id
+            && (b.Status == BookingStatus.PendingApproval || b.Status == BookingStatus.Approved || b.Status == BookingStatus.Completed)).ToList();
     }
 
     private string ServiceName(Guid id) => _services.FirstOrDefault(s => s.Id == id)?.Name ?? "—";

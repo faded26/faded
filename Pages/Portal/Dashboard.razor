@@ -213,7 +213,11 @@
                 <CalendarMonth Bookings="@_bookings.Where(b => b.Status == BookingStatus.PendingApproval || b.Status == BookingStatus.Approved || b.Status == BookingStatus.Completed).ToList()"
                                ServiceName="ServiceName"
                                ServicePrice="ServicePrice"
-                               BarberName="@(_barber.IsOwner ? BarberName : null)" />
+                               BarberName="@(_barber.IsOwner ? BarberName : null)"
+                               Services="@_services"
+                               Barbers="@(_barber.IsOwner ? _barbers : null)"
+                               FixedBarberId="@(_barber.IsOwner ? (Guid?)null : _barber.Id)"
+                               OnBookingCreated="LoadData" />
             }
             else
             {

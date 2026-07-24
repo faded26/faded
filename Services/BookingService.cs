@@ -186,6 +186,59 @@ public class BookingService
         return result.Models;
     }
 
+    public class ManualBookingResult
+    {
+        public Guid? Id { get; set; }
+        public string? Status { get; set; }
+        public string? Error { get; set; }
+    }
+
+    public async Task<ManualBookingResult> CreateManualBooking(
+        Guid barberId, Guid serviceId, string customerName, string? customerPhone, string? customerEmail,
+        DateTime date, TimeSpan time, string paymentMethod)
+    {
+        var payload = new
+        {
+            barber_id = barberId,
+            service_id = serviceId,
+            customer_name = customerName,
+            customer_phone = customerPhone,
+            customer_email = customerEmail,
+            booking_date = date.ToString("yyyy-MM-dd"),
+            booking_time = time.ToString(@"hh\:mm"),
+            payment_method = paymentMethod
+        };
+
+        try
+        {
+            using var http = new HttpClient();
+            var functionUrl = $"{_supabase.Url.TrimEnd('/')}/functions/v1/create-manual-booking";
+
+            var request = new HttpRequestMessage(HttpMethod.Post, functionUrl)
+            {
+                Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+
+            var accessToken = _supabase.Client.Auth.CurrentSession?.AccessToken ?? _supabase.AnonKey;
+            request.Headers.Add("Authorization", $"Bearer {accessToken}");
+            request.Headers.Add("apikey", _supabase.AnonKey);
+
+            var response = await http.SendAsync(request);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<ManualBookingResult>(
+                responseJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return result ?? new ManualBookingResult { Error = "Unexpected empty response." };
+        }
+        catch (Exception ex)
+        {
+            return new ManualBookingResult { Error = ex.Message };
+        }
+    }
+
     public async Task<(bool Success, string? Error)> UpdateBookingStatus(Guid bookingId, string status)
     {
         try

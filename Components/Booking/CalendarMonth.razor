@@ -1,4 +1,6 @@
 @using Faded.Models
+@using Faded.Services
+@inject BookingService BookingService
 
 <div class="calendar-wrap">
     <div class="calendar-header">
@@ -47,7 +49,66 @@
         <div class="cal-day-panel">
             <div class="cal-day-panel-header">
                 <span>@_selectedDate.Value.ToString("dddd, dd MMMM yyyy")</span>
+                <button class="cal-book-btn" @onclick="ToggleBookForm">@(_showBookForm ? "Cancel" : "+ Book Slot")</button>
             </div>
+
+            @if (_showBookForm)
+            {
+                <div class="cal-book-form">
+                    <div class="cal-book-grid">
+                        @if (Barbers is not null && Barbers.Any())
+                        {
+                            <div class="cal-book-field">
+                                <label>Barber</label>
+                                <select @bind="_bookBarberId">
+                                    @foreach (var barber in Barbers)
+                                    {
+                                        <option value="@barber.Id">@barber.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        <div class="cal-book-field">
+                            <label>Service</label>
+                            <select @bind="_bookServiceId">
+                                <option value="">-- Choose a service --</option>
+                                @foreach (var service in Services)
+                                {
+                                    <option value="@service.Id">@service.Name — R@(service.Price)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="cal-book-field">
+                            <label>Time</label>
+                            <input @bind="_bookTime" type="time" />
+                        </div>
+                        <div class="cal-book-field">
+                            <label>Customer Name</label>
+                            <input @bind="_bookCustomerName" placeholder="Full name" />
+                        </div>
+                        <div class="cal-book-field">
+                            <label>Customer Phone</label>
+                            <input @bind="_bookCustomerPhone" placeholder="082 123 4567" />
+                        </div>
+                        <div class="cal-book-field">
+                            <label>Payment Method</label>
+                            <select @bind="_bookPaymentMethod">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_bookError))
+                    {
+                        <p class="cal-book-error">@_bookError</p>
+                    }
+
+                    <button class="cal-book-submit" disabled="@_bookSubmitting" @onclick="SubmitManualBooking">
+                        @(_bookSubmitting ? "Booking..." : "Confirm Booking")
+                    </button>
+                </div>
+            }
 
             @{
                 var bookingsToday = BookingsFor(_selectedDate.Value).OrderBy(b => b.BookingTime).ToList();
@@ -86,6 +147,10 @@
     [Parameter] public Func<Guid, string> ServiceName { get; set; } = _ => "—";
     [Parameter] public Func<Guid, decimal> ServicePrice { get; set; } = _ => 0;
     [Parameter] public Func<Guid, string>? BarberName { get; set; }
+    [Parameter] public List<Service> Services { get; set; } = new();
+    [Parameter] public List<Barber>? Barbers { get; set; }
+    [Parameter] public Guid? FixedBarberId { get; set; }
+    [Parameter] public EventCallback OnBookingCreated { get; set; }
 
     private DateTime _viewMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? _selectedDate = DateTime.Today;
@@ -130,4 +195,87 @@
     }
 
     private string FormatTime(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+
+    // ---------- Manual booking (barber books a slot directly) ----------
+
+    private bool _showBookForm = false;
+    private Guid _bookBarberId;
+    private string _bookServiceId = string.Empty;
+    private TimeOnly _bookTime = new TimeOnly(9, 0);
+    private string _bookCustomerName = string.Empty;
+    private string _bookCustomerPhone = string.Empty;
+    private string _bookPaymentMethod = "cash";
+    private string? _bookError;
+    private bool _bookSubmitting = false;
+
+    private void ToggleBookForm()
+    {
+        _showBookForm = !_showBookForm;
+        _bookError = null;
+
+        if (_showBookForm && Barbers is not null && Barbers.Any() && _bookBarberId == Guid.Empty)
+        {
+            _bookBarberId = Barbers.First().Id;
+        }
+    }
+
+    private async Task SubmitManualBooking()
+    {
+        _bookError = null;
+
+        var resolvedBarberId = (Barbers is not null && Barbers.Any()) ? _bookBarberId : (FixedBarberId ?? Guid.Empty);
+
+        if (resolvedBarberId == Guid.Empty)
+        {
+            _bookError = "Please choose a barber.";
+            return;
+        }
+        if (string.IsNullOrEmpty(_bookServiceId))
+        {
+            _bookError = "Please choose a service.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_bookCustomerName))
+        {
+            _bookError = "Please enter the customer's name.";
+            return;
+        }
+        if (!_selectedDate.HasValue)
+        {
+            _bookError = "No date selected.";
+            return;
+        }
+
+        _bookSubmitting = true;
+
+        var result = await BookingService.CreateManualBooking(
+            resolvedBarberId,
+            Guid.Parse(_bookServiceId),
+            _bookCustomerName,
+            string.IsNullOrWhiteSpace(_bookCustomerPhone) ? null : _bookCustomerPhone,
+            null,
+            _selectedDate.Value,
+            _bookTime.ToTimeSpan(),
+            _bookPaymentMethod);
+
+        _bookSubmitting = false;
+
+        if (result.Error is not null)
+        {
+            _bookError = result.Error;
+            return;
+        }
+
+        _showBookForm = false;
+        _bookServiceId = string.Empty;
+        _bookCustomerName = string.Empty;
+        _bookCustomerPhone = string.Empty;
+        _bookPaymentMethod = "cash";
+        _bookTime = new TimeOnly(9, 0);
+
+        if (OnBookingCreated.HasDelegate)
+        {
+            await OnBookingCreated.InvokeAsync();
+        }
+    }
 }

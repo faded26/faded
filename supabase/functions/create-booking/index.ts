@@ -78,6 +78,46 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Proof of payment is required for card bookings." }), { status: 400, headers: corsHeaders });
     }
 
+    const { data: serviceRow, error: serviceError } = await admin
+      .from("services")
+      .select("duration_minutes")
+      .eq("id", service_id)
+      .single();
+
+    if (serviceError || !serviceRow) {
+      return new Response(JSON.stringify({ error: "Service not found" }), { status: 404, headers: corsHeaders });
+    }
+
+    const toMinutes = (hhmm: string) => {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMinutes(booking_time);
+    const newEnd = newStart + (serviceRow.duration_minutes ?? 30);
+
+    const { data: existingBookings, error: existingError } = await admin
+      .from("bookings")
+      .select("booking_time, services(duration_minutes)")
+      .eq("barber_id", barber_id)
+      .eq("booking_date", booking_date)
+      .in("status", ["pending_approval", "approved", "completed"]);
+
+    if (existingError) {
+      return new Response(JSON.stringify({ error: "Could not check availability", detail: existingError.message }), { status: 500, headers: corsHeaders });
+    }
+
+    const hasConflict = (existingBookings ?? []).some((b: any) => {
+      const existingStart = toMinutes(b.booking_time);
+      const existingDuration = b.services?.duration_minutes ?? 30;
+      const existingEnd = existingStart + existingDuration;
+      return newStart < existingEnd && existingStart < newEnd;
+    });
+
+    if (hasConflict) {
+      return new Response(JSON.stringify({ error: "That time is no longer available for this barber. Please choose another time." }), { status: 409, headers: corsHeaders });
+    }
+
     const status = effectivePaymentMethod === "subscription" ? "approved" : "pending_approval";
 
     const { data: booking, error: insertError } = await admin
