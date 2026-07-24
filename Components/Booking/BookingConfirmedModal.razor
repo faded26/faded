@@ -13,7 +13,7 @@
                 <div class="summary-row"><span class="summary-label">Customer</span><span>@Booking.CustomerName</span></div>
                 <div class="summary-row"><span class="summary-label">When</span><span>@Booking.BookingDate.ToString("dddd, dd MMMM") at @FormatTime(Booking.BookingTime)</span></div>
                 <div class="summary-row"><span class="summary-label">Barber</span><span>@BarberName</span></div>
-                <div class="summary-row"><span class="summary-label">Service</span><span>@ServiceName — R@ServicePrice</span></div>
+                <div class="summary-row"><span class="summary-label">Service</span><span>@ServiceName — R@(ServicePrice)</span></div>
                 @if (!string.IsNullOrEmpty(Booking.CustomerPhone))
                 {
                     <div class="summary-row"><span class="summary-label">Phone</span><span>@Booking.CustomerPhone</span></div>

@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject BookingService BookingService
 @inject AuthService AuthService
+@inject NavigationManager Nav
 
 <PageTitle>Book a Cut - Faded</PageTitle>
 
@@ -163,11 +164,7 @@
                     <p class="alert alert-error">@_submitError</p>
                 }
 
-                @if (_submitted)
-                {
-                    <p class="alert alert-success">Booking submitted! You'll hear from us once it's confirmed.</p>
-                }
-                else
+                @if (!_submitted)
                 {
                     <button type="button" class="btn-primary" @onclick="HandleSubmit" disabled="@_submitting">
                         @(_submitting ? "Submitting..." : "Book Now")
@@ -179,6 +176,16 @@
             </div>
         }
     </main>
+
+    @if (_submitted)
+    {
+        <div class="success-modal-backdrop">
+            <div class="success-modal-panel">
+                <p class="success-modal-text">Booking submitted! You'll hear from us once it's confirmed.</p>
+                <button class="success-modal-ok" @onclick="GoHome">OK</button>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -306,4 +313,6 @@
             _submitting = false;
         }
     }
+
+    private void GoHome() => Nav.NavigateTo("/");
 }

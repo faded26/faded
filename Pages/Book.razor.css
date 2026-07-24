@@ -346,3 +346,46 @@
   font-style: italic;
   font-size: 0.82rem;
 }
+
+.success-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.success-modal-panel {
+  background: var(--surface, #17171a);
+  border: 1px solid var(--border, #2c2c31);
+  border-radius: 12px;
+  padding: 1.75rem;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.success-modal-text {
+  color: var(--text, #f2efe9);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.success-modal-ok {
+  background: var(--accent, #c9a24b);
+  color: #000000;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.success-modal-ok:hover {
+  opacity: 0.9;
+}
